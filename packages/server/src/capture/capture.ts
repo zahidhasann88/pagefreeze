@@ -297,6 +297,15 @@ export async function captureInContext(
       await delay(settings.extraDelayMs);
     }
 
+    // Lazy images may still be decoding after scrolling; settle them before hashing pixels.
+    await page.evaluate(`Promise.race([
+      Promise.all([document.fonts.ready, ...Array.from(document.images, image => {
+        image.loading = 'eager';
+        return image.decode().catch(() => undefined);
+      })]),
+      new Promise(resolve => setTimeout(resolve, 2000))
+    ]).then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))`);
+
     const screenshotOptions = {
       type: 'png' as const,
       fullPage: settings.captureSelector ? false : settings.fullPage,

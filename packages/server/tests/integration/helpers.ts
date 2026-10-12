@@ -162,6 +162,8 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       return client.token ?? '';
     },
     async close() {
+      // Test fetch clients keep pooled connections open; do not wait for their idle timeout.
+      app.server.closeAllConnections();
       await app.close().catch(() => undefined);
       await context.shutdown().catch(() => undefined);
       if (fixture) await fixture.stop().catch(() => undefined);
