@@ -294,7 +294,6 @@ export class SsrfGuard {
     rawHostname: string,
     port: string,
   ): Promise<CheckResult> {
-
     const hostname =
       rawHostname.startsWith('[') && rawHostname.endsWith(']')
         ? rawHostname.slice(1, -1)

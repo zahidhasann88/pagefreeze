@@ -42,7 +42,6 @@ export function isRetryable(result: CaptureResult): boolean {
 }
 
 export function backoffDelayMs(baseMs: number, retryIndex: number): number {
-
   const delay = baseMs * 2 ** retryIndex;
   return Math.min(delay, 30_000);
 }
