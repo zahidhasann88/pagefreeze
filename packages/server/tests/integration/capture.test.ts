@@ -91,7 +91,7 @@ describeDb('capture pipeline', () => {
     expect(snapshots).toHaveLength(1);
 
     const snapshot = snapshots[0]!;
-    expect(snapshot.status).toBe('success');
+    expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     expect(snapshot.httpStatus).toBe(200);
     expect(snapshot.title).toBe('Acme Pricing');
     expect(snapshot.finalUrl).toContain('/static');
@@ -286,7 +286,7 @@ describeDb('capture pipeline', () => {
     const snapshot = snapshots[0]!;
 
     // A 500 still renders, so the capture succeeds but records the status.
-    expect(snapshot.status).toBe('success');
+    expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     expect(snapshot.httpStatus).toBe(500);
   }, 180_000);
 
@@ -516,7 +516,7 @@ describeDb('SSRF enforcement through a real browser', () => {
 
     const snapshot = snapshots[0]!;
     // The page itself is allowed, so the capture succeeds...
-    expect(snapshot.status).toBe('success');
+    expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     expect(snapshot.httpStatus).toBe(200);
     // ...and its content is present.
     const html = await handle.client.buffer(`/api/v1/snapshots/${snapshot.id}/html`);
@@ -644,7 +644,9 @@ describeDb('secrets at rest', () => {
       (rows) => rows.length >= 1,
       { timeoutMs: 120_000, label: 'a snapshot' },
     );
-    expect(snapshots[0]!.status).toBe('success');
+    expect(snapshots[0]!.status, snapshots[0]!.errorMessage ?? 'capture should succeed').toBe(
+      'success',
+    );
     expect(snapshots[0]!.errorMessage).toBeNull();
   }, 240_000);
 

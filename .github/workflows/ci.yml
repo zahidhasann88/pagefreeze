@@ -61,6 +61,8 @@ jobs:
     env:
       # Integration tests and the e2e stack use this database and wipe it between runs.
       DATABASE_URL_TEST: postgres://pagefreeze:pagefreeze@127.0.0.1:5432/pagefreeze_test
+      # Hosted Ubuntu runners restrict Chromium user namespaces. Test-only setting.
+      PAGEFREEZE_DISABLE_CHROMIUM_SANDBOX: 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +89,13 @@ jobs:
 
       - name: Install Chromium for Playwright
         run: pnpm --filter @pagefreeze/server exec playwright install --with-deps chromium
+
+      - name: Verify Chromium can launch in the test runner
+        run: >-
+          pnpm --filter @pagefreeze/server exec node --input-type=module -e
+          "const { chromium } = await import('playwright');
+          const browser = await chromium.launch({ chromiumSandbox: false });
+          await browser.close();"
 
       - name: Build shared package
         run: pnpm build:shared
