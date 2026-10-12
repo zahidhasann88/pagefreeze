@@ -1,0 +1,40 @@
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# local data directory (snapshots, screenshots, sqlite-free artefacts)
+data/
+.data/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# typescript
+*.tsbuildinfo
+
+# Local build and publishing notes
+build-docs.txt
+build-report.txt
+PUBLISHING.md
+VERIFICATION.md

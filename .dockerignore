@@ -1,0 +1,40 @@
+# Build context hygiene: everything below is either irrelevant to the image or would
+# invalidate the Docker layer cache on unrelated changes.
+
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.vite
+**/.parcel-cache
+**/*.tsbuildinfo
+
+# Local runtime state must never be baked into an image.
+data/
+.env
+.env.*
+!.env.example
+
+# Version control and editor metadata.
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Test artefacts and generated screenshots are not needed to run the server.
+test-results/
+playwright-report/
+blob-report/
+docs/images/
+
+# Repository docs that are not part of the runtime.
+*.md
+!README.md
+LICENSE
+CHANGELOG.md
+
+# Docker's own files.
+Dockerfile
+docker-compose.yml
+.dockerignore

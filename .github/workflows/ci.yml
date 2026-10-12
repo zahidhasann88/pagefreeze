@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, format & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4 # version comes from "packageManager" in package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  test:
+    name: Tests (unit, integration, e2e, coverage)
+    runs-on: ubuntu-latest
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pagefreeze
+          POSTGRES_PASSWORD: pagefreeze
+          POSTGRES_DB: pagefreeze_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pagefreeze -d pagefreeze_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Integration tests and the e2e stack use this database and wipe it between runs.
+      DATABASE_URL_TEST: postgres://pagefreeze:pagefreeze@127.0.0.1:5432/pagefreeze_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @pagefreeze/server exec playwright install --with-deps chromium
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      - name: Shared package tests
+        run: pnpm --filter @pagefreeze/shared test
+
+      - name: Web component tests
+        run: pnpm --filter @pagefreeze/web test
+
+      - name: Server tests with coverage (enforces >=80% lines)
+        run: pnpm coverage
+
+      - name: Build all packages (web bundle is served by the e2e server)
+        run: pnpm build
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: packages/server/coverage
+          if-no-files-found: ignore
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: packages/web/test-results
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: pagefreeze:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify production dependencies and Chromium
+        run: >-
+          docker run --rm --entrypoint node pagefreeze:ci --input-type=module -e
+          "await import('fastify'); await import('pg'); await import('@pagefreeze/shared');
+          const { chromium } = await import('playwright');
+          const browser = await chromium.launch({ args: ['--no-sandbox'] });
+          await browser.close();"

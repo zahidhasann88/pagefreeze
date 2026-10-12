@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in Pagefreeze is broken or behaves unexpectedly.
+title: '[bug]: '
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in as much of the
+        following as you can — reproduction steps and logs make fixes dramatically
+        faster. **Security vulnerability?** Do not file an issue; see
+        [SECURITY.md](https://github.com/zahidhasann88/pagefreeze/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen instead.
+      placeholder: A monitor with the 15m preset never produced a second snapshot even though the page changed…
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, concrete steps (monitor settings, URLs of test pages, clicks).
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Pagefreeze version
+      description: Shown in Settings → System info, or `docker image inspect` / git tag.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running it?
+      options:
+        - Docker Compose
+        - Docker (single container, external database)
+        - From source (pnpm)
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, PostgreSQL version, and anything unusual about the network (reverse proxy, IPv6, Docker network mode).
+      placeholder: Ubuntu 24.04, PostgreSQL 17, behind Caddy
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >-
+        Server logs around the time of the problem. Re-run with
+        PAGEFREEZE_LOG_LEVEL=debug or LOG_LEVEL=debug to get more detail.
+        Redact secrets — but note that Pagefreeze never logs secret values by
+        design.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+      description: Drag images or videos in here if they help explain the problem.

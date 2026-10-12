@@ -1,0 +1,48 @@
+{
+  "name": "pagefreeze",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted website change monitoring with visual, text and HTML diffs.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean && rimraf node_modules",
+    "dev": "pnpm build:shared && pnpm --filter @pagefreeze/server dev",
+    "dev:web": "pnpm build:shared && pnpm --filter @pagefreeze/web dev",
+    "start": "pnpm build:shared && pnpm --filter @pagefreeze/server start",
+    "worker": "pnpm build:shared && pnpm --filter @pagefreeze/server worker",
+    "migrate": "pnpm build:shared && pnpm --filter @pagefreeze/server migrate",
+    "demo": "pnpm build:shared && pnpm --filter @pagefreeze/server demo",
+    "seed": "pnpm build:shared && pnpm --filter @pagefreeze/server seed",
+    "openapi": "pnpm --filter @pagefreeze/server openapi",
+    "lint": "pnpm build:shared && eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,css,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,css,yml,yaml}\"",
+    "typecheck": "pnpm build:shared && pnpm -r typecheck",
+    "test": "pnpm build:shared && pnpm -r test",
+    "test:unit": "pnpm build:shared && pnpm -r test:unit",
+    "test:integration": "pnpm build:shared && pnpm -r test:integration",
+    "test:e2e": "pnpm build:shared && pnpm --filter @pagefreeze/web test:e2e",
+    "coverage": "pnpm build:shared && pnpm --filter @pagefreeze/server coverage",
+    "docker:build": "docker build -t pagefreeze:local .",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "build:shared": "pnpm --filter @pagefreeze/shared build",
+    "screenshots": "pnpm build:shared && pnpm --filter @pagefreeze/web build && pnpm --filter @pagefreeze/server screenshots"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^20.19.9",
+    "eslint": "^9.39.0",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

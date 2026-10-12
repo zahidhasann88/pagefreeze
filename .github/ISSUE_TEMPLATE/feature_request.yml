@@ -1,0 +1,53 @@
+name: Feature request
+description: Suggest an idea or improvement for Pagefreeze.
+title: '[feature]: '
+labels: [enhancement, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please describe the problem first — features that
+        solve a clear monitoring problem are the most likely to be built or
+        accepted as PRs.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to monitor or achieve that Pagefreeze cannot do today?
+      placeholder: I monitor a page whose content changes every night, and I want to be notified only when a specific table changes…
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? UI sketches, API shapes and example configuration are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, workarounds you use today, or how other tools solve this.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Pagefreeze would this touch?
+      multiple: true
+      options:
+        - Capture engine
+        - Diffing / change detection
+        - Notifications
+        - Scheduling / jobs
+        - API
+        - Web UI
+        - Deployment / Docker
+        - Documentation
+        - Other
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to submit a pull request for this feature.

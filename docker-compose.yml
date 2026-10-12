@@ -1,0 +1,93 @@
+# Pagefreeze + PostgreSQL.
+#
+#   docker compose up -d          start everything
+#   docker compose logs -f pagefreeze
+#   docker compose down           stop (data volumes are kept)
+#
+# First run: copy .env.example to .env and fill in the three required values
+# (PAGEFREEZE_ADMIN_PASSWORD, PAGEFREEZE_SECRET_KEY, and the compose-level
+# POSTGRES_PASSWORD). Everything else has a sane default.
+
+name: pagefreeze
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pagefreeze}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pagefreeze}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-pagefreeze} -d ${POSTGRES_DB:-pagefreeze}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  pagefreeze:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # To use a published image instead of building locally:
+    #   image: ghcr.io/zahidhasann88/pagefreeze:latest
+    #   build: !reset null
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PAGEFREEZE_MODE: all
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-pagefreeze}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-pagefreeze}
+      # Required. Generate with: openssl rand -base64 32
+      PAGEFREEZE_SECRET_KEY: ${PAGEFREEZE_SECRET_KEY:?set PAGEFREEZE_SECRET_KEY in .env}
+      PAGEFREEZE_ADMIN_USERNAME: ${PAGEFREEZE_ADMIN_USERNAME:-admin}
+      PAGEFREEZE_ADMIN_PASSWORD: ${PAGEFREEZE_ADMIN_PASSWORD:?set PAGEFREEZE_ADMIN_PASSWORD in .env}
+      PAGEFREEZE_DATA_DIR: /data
+      PAGEFREEZE_BASE_URL: ${PAGEFREEZE_BASE_URL:-http://localhost:8080}
+      # Capture behaviour
+      PAGEFREEZE_CAPTURE_CONCURRENCY: ${PAGEFREEZE_CAPTURE_CONCURRENCY:-2}
+      PAGEFREEZE_CAPTURE_TIMEOUT_MS: ${PAGEFREEZE_CAPTURE_TIMEOUT_MS:-60000}
+      PAGEFREEZE_CAPTURE_RETRIES: ${PAGEFREEZE_CAPTURE_RETRIES:-2}
+      PAGEFREEZE_MIN_INTERVAL_MINUTES: ${PAGEFREEZE_MIN_INTERVAL_MINUTES:-15}
+      PAGEFREEZE_BLOCK_MEDIA: ${PAGEFREEZE_BLOCK_MEDIA:-true}
+      # Security
+      ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
+      PAGEFREEZE_ALLOWED_HOSTS: ${PAGEFREEZE_ALLOWED_HOSTS:-}
+      PAGEFREEZE_SECURE_COOKIES: ${PAGEFREEZE_SECURE_COOKIES:-false}
+      # Retention
+      PAGEFREEZE_RETENTION_DAYS: ${PAGEFREEZE_RETENTION_DAYS:-90}
+      # Outbound email notifications (leave SMTP_HOST empty to disable them)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Screenshots, stored HTML and extracted text live here. Back it up: see README.
+      - pagefreeze-data:/data
+    ports:
+      - '${PAGEFREEZE_PORT:-8080}:8080'
+    # /readyz checks the database, the storage volume and that Chromium can launch.
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:''+(process.env.PORT||8080)+''/readyz'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+volumes:
+  postgres-data:
+  pagefreeze-data:
