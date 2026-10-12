@@ -37,7 +37,7 @@ describe('webhook signing', () => {
   it('signs timestamp and body together', () => {
     const signature = signPayload(SECRET, 1_700_000_000, '{"a":1}');
     expect(signature).toMatch(/^[0-9a-f]{64}$/);
-    // Changing either input changes the signature.
+
     expect(signPayload(SECRET, 1_700_000_001, '{"a":1}')).not.toBe(signature);
     expect(signPayload(SECRET, 1_700_000_000, '{"a":2}')).not.toBe(signature);
     expect(signPayload('other-secret', 1_700_000_000, '{"a":1}')).not.toBe(signature);
@@ -71,7 +71,7 @@ describe('webhook signing', () => {
       userAgent: 'ua',
     });
     expect(headers[SIGNATURE_HEADER]).toBeUndefined();
-    // The rest of the headers are still present, so a receiver can correlate deliveries.
+
     expect(headers[TIMESTAMP_HEADER]).toBe('1');
   });
 
@@ -128,7 +128,6 @@ describe('webhook signing', () => {
       }).ok,
     ).toBe(false);
 
-    // Inside the window it still verifies.
     expect(
       verifySignature({
         secret: SECRET,
@@ -223,11 +222,11 @@ describe('failure notification policy', () => {
     expect(onSuccess({ consecutiveFailures: 5, failureNotified: true }, policy).action).toBe(
       'notify-recovery',
     );
-    // A streak that never reached the threshold recovers silently.
+
     expect(onSuccess({ consecutiveFailures: 2, failureNotified: false }, policy).action).toBe(
       'none',
     );
-    // Nothing to recover from.
+
     expect(onSuccess(fresh, policy).action).toBe('none');
   });
 
@@ -287,7 +286,6 @@ describe('capture retry policy', () => {
   });
 
   it('does not retry a blocked request', () => {
-    // The destination is not going to become reachable, and retrying only creates load.
     expect(isRetryable({ ok: false, errorKind: 'blocked' } as never)).toBe(false);
   });
 
@@ -543,7 +541,7 @@ describe('NotificationService', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain('SSRF');
-    // Nothing was sent.
+
     expect(http.calls).toHaveLength(0);
   });
 

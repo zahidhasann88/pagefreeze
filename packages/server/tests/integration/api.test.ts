@@ -34,8 +34,7 @@ describeDb('REST API', () => {
 
   beforeAll(async () => {
     await resetDatabase();
-    // No browser: these tests exercise the HTTP layer, and skipping Chromium keeps the
-    // suite fast. Capture behaviour is covered in capture.test.ts.
+
     handle = await startTestApp({ disableBrowser: true });
     fixtureUrl = 'https://example.com';
     await handle.login();
@@ -50,8 +49,6 @@ describeDb('REST API', () => {
     handle.client.get<T>(path, query);
   const post = <T>(path: string, body?: unknown) => handle.client.post<T>(path, body);
   const patch = <T>(path: string, body?: unknown) => handle.client.patch<T>(path, body);
-
-  /* ---------------------------------------------------------------- health */
 
   describe('operational endpoints', () => {
     it('serves healthz without authentication', async () => {
@@ -117,8 +114,6 @@ describeDb('REST API', () => {
     });
   });
 
-  /* ------------------------------------------------------------------ auth */
-
   describe('authentication', () => {
     it('rejects a wrong password with the documented error shape', async () => {
       const client = new ApiClient(handle.baseUrl);
@@ -152,7 +147,7 @@ describeDb('REST API', () => {
 
     it('rate limits repeated login attempts from one address', async () => {
       // The limit is 10 per 5 minutes; a fresh client shares the address with the rest of
-      // the suite, so this only asserts that hammering eventually produces a 429.
+
       const client = new ApiClient(handle.baseUrl);
       let limited = false;
       for (let attempt = 0; attempt < 14; attempt += 1) {
@@ -171,8 +166,6 @@ describeDb('REST API', () => {
     }, 120_000);
   });
 
-  /* ------------------------------------------------------------------ csrf */
-
   describe('CSRF protection', () => {
     const mutating: Array<[string, string, unknown]> = [
       ['POST', '/api/v1/monitors', { name: 'x', url: 'https://example.com' }],
@@ -189,7 +182,7 @@ describeDb('REST API', () => {
       it(`refuses ${method} ${path} without the CSRF header`, async () => {
         const response = await fetch(`${handle.baseUrl}${path}`, {
           method,
-          // A bodyless request must not declare a JSON content type, or Fastify rejects it
+
           // during body parsing, before the CSRF preHandler ever runs.
           headers:
             body === undefined
@@ -223,8 +216,6 @@ describeDb('REST API', () => {
       expect(response.status).toBe(200);
     });
   });
-
-  /* ------------------------------------------------------------- api tokens */
 
   describe('API tokens', () => {
     let token: string;
@@ -313,7 +304,6 @@ describeDb('REST API', () => {
         ).status,
       ).toBe(401);
 
-      // Revoking twice is a 404, not a 500.
       expect((await handle.client.delete(`/api/v1/tokens/${target.id}`)).status).toBe(404);
     });
 
@@ -338,8 +328,6 @@ describeDb('REST API', () => {
       expect(row.lastUsedAt === null || typeof row.lastUsedAt === 'string').toBe(true);
     });
   });
-
-  /* --------------------------------------------------------------- monitors */
 
   describe('monitors CRUD', () => {
     let monitorId: string;
@@ -417,8 +405,6 @@ describeDb('REST API', () => {
     });
 
     it('rejects a schedule more frequent than the configured minimum', async () => {
-      // The test app sets PAGEFREEZE_MIN_INTERVAL_MINUTES=0, so use a dedicated instance
-      // with a real minimum instead of asserting against a disabled check.
       const strict = await startTestApp({
         disableBrowser: true,
         env: { PAGEFREEZE_MIN_INTERVAL_MINUTES: '60' },
@@ -511,7 +497,7 @@ describeDb('REST API', () => {
       expect(response.status).toBe(200);
       expect(response.data?.changeThreshold).toBe(2.5);
       expect(response.data?.tags).toEqual(['pricing', 'competitor']);
-      // Untouched fields keep their values.
+
       expect(response.data?.name).toBe('Pricing page');
       expect(response.data?.viewportWidth).toBe(1280);
       expect(response.data?.scheduleValue).toBe('24h');
@@ -561,7 +547,7 @@ describeDb('REST API', () => {
 
       const firstIds = first.data!.data.map((monitor) => monitor.id);
       const secondIds = second.data!.data.map((monitor) => monitor.id);
-      // Keyset pagination must not repeat or skip rows.
+
       expect(firstIds.filter((id) => secondIds.includes(id))).toEqual([]);
     });
 
@@ -618,8 +604,6 @@ describeDb('REST API', () => {
     });
   });
 
-  /* -------------------------------------------------------------- snapshots */
-
   describe('snapshots and changes', () => {
     it('returns an empty page for a monitor with no history', async () => {
       const monitor = await post<Monitor>('/api/v1/monitors', {
@@ -655,8 +639,6 @@ describeDb('REST API', () => {
       expect((await get('/api/v1/compare', { a: missing, b: missing })).status).toBe(404);
     });
   });
-
-  /* --------------------------------------------------------------- channels */
 
   describe('notification channels', () => {
     it('creates webhook, slack and email channels', async () => {
@@ -752,7 +734,7 @@ describeDb('REST API', () => {
       const created = await post<NotificationChannel>('/api/v1/channels', {
         type: 'webhook',
         name: 'Undeliverable',
-        // example.com does not accept POSTs to this path, so delivery must fail.
+
         config: { url: 'https://example.com/no-such-hook', secret: 'hidden-secret-value' },
       });
 
@@ -780,8 +762,6 @@ describeDb('REST API', () => {
     });
   });
 
-  /* ----------------------------------------------------------- share links */
-
   describe('share links', () => {
     it('validates the expiry parameter', async () => {
       const changeId = '00000000-0000-4000-8000-000000000000';
@@ -808,8 +788,6 @@ describeDb('REST API', () => {
     });
   });
 
-  /* ------------------------------------------------------------- hardening */
-
   describe('security headers and limits', () => {
     it('sets the documented headers on every response', async () => {
       const response = await fetch(`${handle.baseUrl}/healthz`);
@@ -823,7 +801,7 @@ describeDb('REST API', () => {
       expect(csp).toContain("default-src 'self'");
       expect(csp).toContain("frame-ancestors 'none'");
       expect(csp).toContain("object-src 'none'");
-      // The SPA ships no inline script, so the policy must not weaken to allow it.
+
       expect(csp).not.toContain('unsafe-inline');
       expect(csp).not.toContain('unsafe-eval');
     });
@@ -964,7 +942,7 @@ describeDb('webhook delivery against a live receiver', () => {
       name: 'Blocked receiver',
       config: { url: 'http://127.0.0.1:1/hook' },
     });
-    // The address is loopback and this instance allowlists nothing.
+
     expect(created.status).toBe(400);
     expect(created.text).toContain('SSRF');
   });

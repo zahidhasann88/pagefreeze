@@ -83,7 +83,6 @@ describeDb('retention', () => {
     return monitor.id;
   }
 
-  /** Insert a snapshot row plus its artefacts, backdated by `ageDays`. */
   async function addSnapshot(
     monitorId: string,
     ageDays: number,
@@ -169,7 +168,6 @@ describeDb('retention', () => {
     expect(report.snapshotsDeleted).toBeGreaterThanOrEqual(2);
     expect(report.filesDeleted).toBeGreaterThanOrEqual(6);
 
-    // Both expired rows are gone, the recent one survives.
     const remaining = await db.query<{ id: string }>(
       'SELECT id FROM snapshots WHERE monitor_id=$1',
       [monitorId],
@@ -179,7 +177,6 @@ describeDb('retention', () => {
     expect(ids).not.toContain(old);
     expect(ids).not.toContain(middle);
 
-    // Their artefacts went with them.
     expect(existsSync(storage.resolve(SCREENSHOT_KEY(monitorId, old)))).toBe(false);
     expect(existsSync(storage.resolve(HTML_KEY(monitorId, old)))).toBe(false);
     expect(existsSync(storage.resolve(TEXT_KEY(monitorId, old)))).toBe(false);
@@ -196,7 +193,6 @@ describeDb('retention', () => {
 
     await runRetention(retentionOptions());
 
-    // 30 days exceeds the 7-day monitor window, so it is deleted.
     expect(await countSnapshots(shortMonitor)).toBe(1);
     const shortRemaining = await db.query<{ id: string }>(
       'SELECT id FROM snapshots WHERE monitor_id=$1',
@@ -204,8 +200,6 @@ describeDb('retention', () => {
     );
     expect(shortRemaining.rows[0]!.id).toBe(shortRecent);
 
-    // 30 days is inside the 365-day window, so it is kept even though the global default
-    // is 90 days.
     const longIds = await db.query<{ id: string }>('SELECT id FROM snapshots WHERE monitor_id=$1', [
       longMonitor,
     ]);
@@ -215,9 +209,6 @@ describeDb('retention', () => {
   it('always keeps the newest snapshot, even when it is older than the cutoff', async () => {
     const monitorId = await makeMonitor('retention-keep-newest', null);
 
-    // Every snapshot is far older than the 90-day window: a monitor that has not run in a
-    // while must not lose its baseline, or the next capture would have nothing to compare
-    // against and every subsequent change would be reported as a first snapshot.
     const only = await addSnapshot(monitorId, 400);
 
     await runRetention(retentionOptions());
@@ -259,8 +250,6 @@ describeDb('retention', () => {
     const diffKey = `monitors/${monitorId}/changes/${change.id}/diff.png`;
     await storage.put(diffKey, Buffer.alloc(32, 2));
 
-    // created_at defaults to now(); backdate it to match the snapshots it compares,
-    // otherwise the row is newer than the cutoff and correctly survives.
     const backdated = new Date(clock.timestamp() - 200 * 86_400_000).toISOString();
     await db.query('UPDATE changes SET diff_image_key=$2, created_at=$3 WHERE id=$1', [
       change.id,
@@ -305,7 +294,6 @@ describeDb('retention', () => {
     const monitorId = await makeMonitor('retention-orphans', null);
     await addSnapshot(monitorId, 1);
 
-    // Simulate a crash between writing an artefact and committing its row.
     const orphanKey = `monitors/${monitorId}/snapshots/deadbeef-0000-4000-8000-000000000000/screenshot.png`;
     await storage.put(orphanKey, Buffer.alloc(16, 3));
     expect(existsSync(storage.resolve(orphanKey))).toBe(true);
@@ -317,7 +305,6 @@ describeDb('retention', () => {
     expect(deleted).toBeGreaterThanOrEqual(1);
     expect(existsSync(storage.resolve(orphanKey))).toBe(false);
 
-    // Files that ARE referenced survive.
     const kept = await db.query<{ screenshot_key: string }>(
       'SELECT screenshot_key FROM snapshots WHERE monitor_id=$1 AND screenshot_key IS NOT NULL LIMIT 1',
       [monitorId],
@@ -374,7 +361,6 @@ describeDb('retention', () => {
     }
     await addSnapshot(monitorId, 1);
 
-    // A batch size of 2 removes at most two snapshots per monitor per run.
     const report = await runRetention({ ...retentionOptions(), batchSize: 2 });
     expect(report.snapshotsDeleted).toBeLessThanOrEqual(8);
 

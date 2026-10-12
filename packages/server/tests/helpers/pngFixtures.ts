@@ -1,12 +1,4 @@
 import { PNG } from 'pngjs';
-
-/**
- * PNG fixtures are generated rather than committed as binaries.
- *
- * A generated fixture is exact, reviewable in a diff, and cannot rot; a committed PNG is
- * none of those. Each helper documents the visual-diff case it exists to exercise.
- */
-
 export interface Rgb {
   r: number;
   g: number;
@@ -19,7 +11,6 @@ export const RED: Rgb = { r: 220, g: 40, b: 40 };
 export const GREEN: Rgb = { r: 40, g: 160, b: 70 };
 export const BLUE: Rgb = { r: 40, g: 90, b: 200 };
 
-/** A solid-colour PNG. */
 export function solidPng(width: number, height: number, color: Rgb): Buffer {
   const png = new PNG({ width, height });
   for (let y = 0; y < height; y += 1) {
@@ -38,7 +29,6 @@ export function setPixel(png: PNG, x: number, y: number, color: Rgb, alpha = 255
   png.data[offset + 3] = alpha;
 }
 
-/** A white page with a filled rectangle, standing in for a block of content. */
 export function pageWithBlock(
   width: number,
   height: number,
@@ -56,18 +46,12 @@ export function pageWithBlock(
   return PNG.sync.write(png);
 }
 
-/**
- * Anti-aliasing noise: a few pixels shifted by a small colour distance, the kind of thing
- * sub-pixel text rendering produces between two renders of the same page.
- *
- * With `includeAA: false` and a sane threshold these should not be reported as changes.
- */
 export function pageWithAntiAliasNoise(width: number, height: number): Buffer {
   const png = new PNG({ width, height });
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) setPixel(png, x, y, WHITE);
   }
-  // A soft gradient edge, as produced by text anti-aliasing.
+
   for (let y = 20; y < 24; y += 1) {
     for (let x = 20; x < 60; x += 1) {
       const shade = 250 - ((x + y) % 4);
@@ -91,7 +75,6 @@ export function pageWithAntiAliasNoiseShifted(width: number, height: number): Bu
   return PNG.sync.write(png);
 }
 
-/** Decode a PNG so a test can assert on raw pixels. */
 export function decodePng(buffer: Buffer): PNG {
   return PNG.sync.read(buffer);
 }

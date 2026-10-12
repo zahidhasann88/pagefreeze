@@ -9,32 +9,9 @@ import { connect as netConnect, type Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { promises as dnsPromises } from 'node:dns';
 import type { AddressInfo } from 'node:net';
-
-/**
- * SSRF guard.
- *
- * Monitored URLs are fetched by a real browser, so every request a page makes - the
- * navigation, its redirect chain, subframes, XHR/fetch calls and subresources - is
- * untrusted input. The guard is applied in two layers:
- *
- *   1. `SsrfGuard.checkUrl()` / `checkConnect()` resolve the hostname themselves and
- *      reject the request when *any* resolved address is loopback, link-local, private,
- *      a cloud metadata address or otherwise unroutable. Every Playwright request is
- *      checked through `context.route()`, which covers redirects and subresources.
- *
- *   2. `SsrfProxy` is an in-process HTTP proxy that the capture browser is pointed at.
- *      It opens the socket to the exact IP address the guard validated, so a hostname
- *      that resolves to a public address during validation and to 127.0.0.1 a moment
- *      later (DNS rebinding) cannot be reached: the browser never resolves it itself.
- *
- * Note: Chromium bypasses proxies for hosts it considers loopback, so for loopback
- * targets layer 1 is the enforcement point. Both layers apply the same rules.
- */
-
 export interface CheckResult {
   allowed: boolean;
   reason?: string;
-  /** Validated addresses the connection may use, empty when blocked. */
   addresses: string[];
 }
 
@@ -79,10 +56,6 @@ const BLOCKED_V4: Array<[string, string]> = [
   ['240.0.0.0/4', 'reserved'],
 ];
 
-/**
- * Headers that belong to a single transport connection and must not be forwarded, in
- * either direction, by a proxy (RFC 9110 section 7.6.1).
- */
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
   'keep-alive',
@@ -95,17 +68,12 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
-/** Addresses that deserve a more specific message than their containing range. */
 const SPECIAL_V4 = new Map<string, string>([
   ['169.254.169.254', 'cloud-metadata'],
   ['169.254.170.2', 'cloud-metadata'],
   ['100.100.100.200', 'cloud-metadata'],
   ['192.0.0.192', 'cloud-metadata'],
 ]);
-
-/* -------------------------------------------------------------------------- */
-/* IPv4                                                                        */
-/* -------------------------------------------------------------------------- */
 
 export function ipv4ToInt(ip: string): number | null {
   const parts = ip.split('.');
@@ -114,7 +82,7 @@ export function ipv4ToInt(ip: string): number | null {
   for (const part of parts) {
     if (part.length === 0 || part.length > 3) return null;
     if (!/^\d+$/.test(part)) return null;
-    if (part.length > 1 && part.startsWith('0')) return null; // reject leading zeros
+    if (part.length > 1 && part.startsWith('0')) return null;
     const n = Number.parseInt(part, 10);
     if (n > 255) return null;
     value = value * 256 + n;
@@ -131,11 +99,6 @@ function cidrMatchV4(value: number, cidr: string): boolean {
   return (value & mask) === (baseInt & mask);
 }
 
-/* -------------------------------------------------------------------------- */
-/* IPv6                                                                        */
-/* -------------------------------------------------------------------------- */
-
-/** Expands an IPv6 address into eight 16-bit groups. Returns null when unparseable. */
 export function expandIpv6(ip: string): number[] | null {
   let text = ip.trim();
 
@@ -144,11 +107,8 @@ export function expandIpv6(ip: string): number[] | null {
   if (text.length === 0 || text.length > 45) return null;
 
   const lastColon = text.lastIndexOf(':');
-  if (lastColon < 0) return null; // no colon at all: not an IPv6 address
+  if (lastColon < 0) return null;
 
-  // Rewrite an embedded IPv4 tail as the two hex groups it stands for, so the rest of the
-  // parser only ever deals with `::` compression and hex groups. Slicing the tail off
-  // instead would leave a dangling colon behind (`::127.0.0.1` -> `:`) and fail to parse.
   if (text.slice(lastColon + 1).includes('.')) {
     const intValue = ipv4ToInt(text.slice(lastColon + 1));
     if (intValue === null) return null;
@@ -215,29 +175,23 @@ export function classifyIpv6(groups: number[]): { blocked: true; reason: string 
 
   const v4FromTail = `${(g6 >> 8) & 0xff}.${g6 & 0xff}.${(g7 >> 8) & 0xff}.${g7 & 0xff}`;
 
-  // IPv4-mapped (::ffff:a.b.c.d) and IPv4-compatible (::a.b.c.d).
   if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && (g5 === 0 || g5 === 0xffff)) {
     const verdict = classifyIpv4(v4FromTail);
     return verdict ? { blocked: true, reason: verdict.reason } : null;
   }
 
   if (g0 === 0x0064 && g1 === 0xff9b) {
-    // 64:ff9b::/96 is the well-known NAT64 prefix: judge the embedded IPv4 address.
     if (g2 === 0 && g3 === 0 && g4 === 0) {
       const verdict = classifyIpv4(v4FromTail);
       return verdict ? { blocked: true, reason: verdict.reason } : null;
     }
     // 64:ff9b:1::/48 (RFC 8215) is local-use only and has no meaning for an outbound
-    // capture, so block it rather than guessing at the embedded address.
+
     return { blocked: true, reason: 'nat64' };
   }
 
   return null;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Classification                                                              */
-/* -------------------------------------------------------------------------- */
 
 export function classifyIpv4(ip: string): { blocked: true; reason: string } | null {
   const special = SPECIAL_V4.get(ip);
@@ -252,7 +206,6 @@ export function classifyIpv4(ip: string): { blocked: true; reason: string } | nu
   return null;
 }
 
-/** Classify a literal IP address. Returns `null` when the address is allowed. */
 export function classifyIp(ip: string): { blocked: true; reason: string } | null {
   const trimmed = ip.trim();
   if (trimmed.includes(':')) {
@@ -270,11 +223,10 @@ export function isBlockedHostname(hostname: string): string | null {
   for (const suffix of BLOCKED_HOSTNAME_SUFFIXES) {
     if (host.endsWith(suffix)) return 'blocked-hostname';
   }
-  // A decimal IPv4 literal such as http://2130706433/ is decoded by most HTTP clients.
+
   if (/^\d+$/.test(host)) return 'numeric-hostname';
   return null;
 }
-
 export interface Resolver {
   lookup(hostname: string): Promise<Array<{ address: string; family: number }>>;
 }
@@ -289,14 +241,8 @@ export const systemResolver: Resolver = {
     }
   },
 };
-
 export interface SsrfGuardOptions {
   allowPrivateTargets?: boolean;
-  /**
-   * Hosts (optionally `host:port`) that bypass the address range checks. Intended for
-   * lab setups and for the bundled demo, which monitors a local fixture site. Every
-   * other host, including redirect targets, is fully validated.
-   */
   allowedHosts?: string[];
   resolver?: Resolver;
   cacheTtlMs?: number;
@@ -318,7 +264,6 @@ export class SsrfGuard {
     this.cacheTtlMs = options.cacheTtlMs ?? 30_000;
   }
 
-  /** Check a full URL. Every scheme except http and https is rejected. */
   async checkUrl(rawUrl: string): Promise<CheckResult> {
     let url: URL;
     try {
@@ -329,7 +274,6 @@ export class SsrfGuard {
     return this.checkTarget(url.protocol, url.hostname, url.port);
   }
 
-  /** Check a CONNECT target (`host:port`) seen by the capture proxy. */
   async checkConnect(hostPort: string): Promise<CheckResult> {
     const separator = hostPort.lastIndexOf(':');
     const host = separator >= 0 ? hostPort.slice(0, separator) : hostPort;
@@ -350,8 +294,7 @@ export class SsrfGuard {
     rawHostname: string,
     port: string,
   ): Promise<CheckResult> {
-    // `new URL()` keeps the brackets around an IPv6 literal ("[::1]"), and so does the
-    // host part of a CONNECT target. Strip them before classifying the address.
+
     const hostname =
       rawHostname.startsWith('[') && rawHostname.endsWith(']')
         ? rawHostname.slice(1, -1)
@@ -379,7 +322,6 @@ export class SsrfGuard {
       return { allowed: false, reason: hostnameReason, addresses: [] };
     }
 
-    // Literal IP address: no DNS involved.
     if (ipv4ToInt(hostname) !== null || hostname.includes(':')) {
       const verdict = classifyIp(hostname);
       if (verdict && !this.allowPrivateTargets && !this.isAllowedHost(hostname, portNumber)) {
@@ -423,19 +365,8 @@ export class SsrfGuard {
     this.cache.clear();
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Capture proxy                                                              */
-/* -------------------------------------------------------------------------- */
-
 export interface SsrfProxyOptions {
   guard: SsrfGuard;
-  /**
-   * Idle timeout for a forwarded plain-HTTP request. Must be at least as long as the capture
-   * timeout, otherwise a slow origin is cut off by the proxy and Chromium renders our 502 as
-   * though the site had returned it - recording a "successful" capture of a page that never
-   * loaded. Defaults to 120s.
-   */
   upstreamTimeoutMs?: number;
   onBlocked?: (info: { target: string; reason: string }) => void;
   logger?: {
@@ -455,10 +386,6 @@ function writeHeaders(
   socket.write(head);
 }
 
-/**
- * Loopback-only HTTP proxy used by the capture browser. Both the HTTP and the
- * HTTPS/CONNECT path open the upstream socket to an address the guard validated.
- */
 export class SsrfProxy {
   private server: Server | null = null;
   private port = 0;
@@ -545,18 +472,6 @@ export class SsrfProxy {
     clientSocket.on('close', () => upstream.destroy());
   }
 
-  /**
-   * Forward a plain HTTP request.
-   *
-   * Chromium sends absolute-form requests (`GET http://host/path`) to a proxy for http://
-   * URLs, and uses CONNECT for https:// ones. The upstream socket is opened to the exact
-   * IP address the guard validated - `host` is an IP literal, so Node performs no DNS
-   * lookup of its own and a rebinding hostname cannot resolve to something else here.
-   *
-   * The response is parsed and re-emitted through the ServerResponse API rather than piped
-   * as raw bytes: piping would make Node invent its own `200 OK` framing and hand the
-   * browser a document whose body is the upstream status line and headers.
-   */
   private async handlePlainRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const raw = req.url ?? '';
     const target = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `http://${raw}`;
@@ -601,9 +516,7 @@ export class SsrfProxy {
         method: req.method ?? 'GET',
         path: `${url.pathname}${url.search}`,
         headers,
-        // The address is already vetted. The timeout only exists to release a socket an
-        // origin abandoned; it must stay above the capture timeout so the browser's own
-        // deadline is what fires first.
+
         timeout: this.options.upstreamTimeoutMs ?? 120_000,
       },
       (upstreamResponse) => {

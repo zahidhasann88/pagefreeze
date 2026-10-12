@@ -1,11 +1,3 @@
-/**
- * Inline SVG icons.
- *
- * Everything is hand-drawn here rather than pulled from an icon package or a CDN: the app
- * must render on an isolated network with no external requests, and a dozen small paths
- * cost less than a dependency.
- */
-
 import type { SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
@@ -30,7 +22,6 @@ function Svg({ size = 16, children, ...rest }: IconProps) {
   );
 }
 
-/** The Pagefreeze mark: a snowflake over a document, for "frozen page". */
 export function Logo({ size = 22, ...rest }: IconProps) {
   return (
     <svg

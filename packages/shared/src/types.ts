@@ -1,6 +1,4 @@
 import type { ChannelType, DevicePreset, MonitorStatus, WaitStrategy } from './constants.js';
-
-/** A clustered rectangle of changed pixels, in CSS pixels of the "after" screenshot. */
 export interface DiffRegion {
   x: number;
   y: number;
@@ -9,22 +7,18 @@ export interface DiffRegion {
   /** Share of the total changed pixels inside this rectangle (0-1). */
   weight: number;
 }
-
 export interface ChangeDiffStats {
   linesAdded: number;
   linesRemoved: number;
 }
-
 export interface SizeInfo {
   width: number;
   height: number;
 }
-
 export interface MonitorSecretsMeta {
   headerNames: string[];
   cookieNames: string[];
 }
-
 export interface Monitor {
   id: string;
   name: string;
@@ -63,7 +57,6 @@ export interface Monitor {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface MonitorSummary {
   id: string;
   name: string;
@@ -77,7 +70,6 @@ export interface MonitorSummary {
   lastRunAt: string | null;
   lastCheckedAt: string | null;
   lastChangeAt: string | null;
-  /** Relative URL of the newest successful screenshot, or null. */
   latestScreenshotUrl: string | null;
   latestSnapshotId: string | null;
   recentChangeCount: number;
@@ -86,7 +78,6 @@ export interface MonitorSummary {
   consecutiveFailures: number;
   changeThreshold: number;
 }
-
 export interface Snapshot {
   id: string;
   monitorId: string;
@@ -102,12 +93,10 @@ export interface Snapshot {
   screenshotHash: string | null;
   htmlHash: string | null;
   textHash: string | null;
-  /** Set when the content was identical to an earlier snapshot (no new files stored). */
   duplicateOf: string | null;
   bytes: number | null;
   changeId: string | null;
 }
-
 export interface Change {
   id: string;
   monitorId: string;
@@ -129,7 +118,6 @@ export interface Change {
   regions: DiffRegion[];
   hasDiffImage: boolean;
 }
-
 export interface NotificationChannel {
   id: string;
   name: string;
@@ -140,7 +128,6 @@ export interface NotificationChannel {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface ApiToken {
   id: string;
   name: string;
@@ -150,12 +137,9 @@ export interface ApiToken {
   lastUsedAt: string | null;
   revokedAt: string | null;
 }
-
 export interface ApiTokenCreated extends ApiToken {
-  /** Returned exactly once, at creation time. */
   token: string;
 }
-
 export interface ShareLink {
   id: string;
   changeId: string;
@@ -164,7 +148,6 @@ export interface ShareLink {
   expiresAt: string | null;
   revokedAt: string | null;
 }
-
 /** The read-only payload of `GET /api/v1/system/info`. */
 export interface SystemInfo {
   version: string;
@@ -186,7 +169,6 @@ export interface SystemInfo {
   counts: { monitors: number; snapshots: number; changes: number };
   scheduler: { enabled: boolean; queueDepth: number };
 }
-
 export interface JobRef {
   id: string;
   monitorId: string;

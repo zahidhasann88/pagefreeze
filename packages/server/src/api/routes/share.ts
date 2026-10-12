@@ -9,25 +9,6 @@ import { sendPng } from './snapshots.js';
 import { RAW_CONTENT_CSP } from '../security.js';
 import { textResponse } from '../http.js';
 
-/**
- * Public share links.
- *
- * A share link exposes ONE change, read-only, to anyone holding the token. The token is
- * 256 bits of randomness and only its SHA-256 hash is stored, so it cannot be enumerated
- * or recovered from the database. Links can be revoked and can expire.
- *
- * Privacy implications (also in README and docs/security.md):
- *   - Whoever has the URL sees the screenshots, the extracted text and the HTML diff of
- *     both captures. If the monitored page is behind authentication, that content may
- *     include account-specific or personal data.
- *   - The URL is a bearer credential: forwarding it forwards access. Anyone with it also
- *     appears in this server's access logs.
- *   - Views are counted but not attributed; no recipient identity is recorded.
- *
- * Artefacts are served through token-scoped routes rather than the authenticated ones, so
- * a share never widens access to the rest of the monitor's history.
- */
-
 type ShareWhich = 'before' | 'after' | 'diff';
 
 async function resolveShare(deps: AppDeps, token: string) {
@@ -81,7 +62,6 @@ export async function registerShareRoutes(app: AppInstance, deps: AppDeps): Prom
     const data = await deps.storage.get(key);
     if (!data) throw notFound('Artefact is missing from storage');
 
-    // Not cached: a revoked link must stop working immediately.
     sendPng(reply, data, false);
   });
 
@@ -123,7 +103,5 @@ async function artefactKey(
   const snapshot = await queries.getSnapshotRow(deps.db, snapshotId);
   if (!snapshot) return null;
 
-  // A de-duplicated snapshot points at an earlier snapshot's files, so use the stored key
-  // rather than reconstructing one from the id.
   return snapshot.screenshot_key ?? SCREENSHOT_KEY(change.monitorId, snapshotId);
 }

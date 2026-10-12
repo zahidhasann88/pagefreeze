@@ -11,17 +11,7 @@ import { runMigrations } from '../../src/scripts/migrate.js';
 import { FixtureServer } from '../../src/fixtures/fixtureServer.js';
 import { ApiClient } from '../../src/scripts/apiClient.js';
 
-/**
- * Integration harness.
- *
- * These tests use a real PostgreSQL and a real Chromium against a local fixture site, so
- * they exercise the paths that matter most and cannot be faked meaningfully: the SSRF proxy
- * in front of a live browser, pixel diffing of actual screenshots, and the SQL.
- *
- * When PostgreSQL is unavailable the suite skips itself with an explanation rather than
- * failing, so `pnpm test` is usable on a laptop without a database. Set DATABASE_URL_TEST
- * to point at a scratch database; it is wiped and re-migrated on every run.
- */
+/** These tests reset the database schema. Use a dedicated test database. */
 
 export const TEST_DATABASE_URL =
   process.env['DATABASE_URL_TEST'] ??
@@ -50,7 +40,6 @@ export async function databaseAvailable(): Promise<{ ok: boolean; reason?: strin
   }
 }
 
-/** Wipe the schema and re-run every migration, so each file starts from a known state. */
 export async function resetDatabase(): Promise<void> {
   const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
   await client.connect();
@@ -67,7 +56,6 @@ export async function resetDatabase(): Promise<void> {
 export function newClient(): pg.Client {
   return new pg.Client({ connectionString: TEST_DATABASE_URL });
 }
-
 export interface TestApp {
   context: AppContext;
   app: BuildAppOptions extends never ? never : Awaited<ReturnType<typeof buildApp>>;
@@ -77,9 +65,7 @@ export interface TestApp {
   login(): Promise<string>;
   close(): Promise<void>;
 }
-
 export interface TestAppOptions {
-  /** Skip launching Chromium (API-only tests run much faster). */
   disableBrowser?: boolean;
   disableScheduler?: boolean;
   fixturePort?: number;
@@ -89,10 +75,6 @@ export interface TestAppOptions {
 
 let nextPort = 8300;
 
-/**
- * Boot the whole application against the test database, plus a fixture website and a
- * logged-in API client.
- */
 export async function startTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const port = options.port ?? nextPort++;
   const dataDir = mkdtempSync(join(tmpdir(), 'pagefreeze-it-'));
@@ -162,7 +144,6 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
       return client.token ?? '';
     },
     async close() {
-      // Test fetch clients keep pooled connections open; do not wait for their idle timeout.
       app.server.closeAllConnections();
       await app.close().catch(() => undefined);
       await context.shutdown().catch(() => undefined);
@@ -171,7 +152,6 @@ export async function startTestApp(options: TestAppOptions = {}): Promise<TestAp
     },
   };
 
-  // Expose the fixture through the handle so tests can mutate the page between captures.
   (handle as unknown as { fixture: FixtureServer | null }).fixture = fixture;
   (handle as unknown as { fixtureUrl: string }).fixtureUrl = fixtureUrl;
   (handle as unknown as { dataDir: string }).dataDir = dataDir;
@@ -193,7 +173,6 @@ export function dataDirOf(handle: TestApp): string {
   return (handle as unknown as { dataDir: string }).dataDir;
 }
 
-/** Poll until `predicate` holds, or fail with the last observed value. */
 export async function waitFor<T>(
   fn: () => Promise<T>,
   predicate: (value: T) => boolean,

@@ -10,12 +10,6 @@ import {
 import { ErrorState, LoadingState, describeError } from '../components/ui.js';
 import type { MonitorFormValues } from '../api/types.js';
 
-/**
- * Create and edit share one form. Editing loads the stored monitor and maps it onto the
- * form values; secret *values* are not available (the API never returns them), so the
- * header and cookie editors start empty and only the stored names are shown. Leaving them
- * empty preserves what is already stored.
- */
 export function MonitorFormPage() {
   const { monitorId } = useParams<{ monitorId: string }>();
   const navigate = useNavigate();
@@ -72,7 +66,6 @@ export function MonitorFormPage() {
 
   const onSubmit = (values: MonitorFormValues): void => {
     if (isEdit && monitorId) {
-      // Only send the secret fields when the operator actually entered something; sending
       // an empty object would wipe the stored credentials.
       const payload: Partial<MonitorFormValues> = { ...values };
       if (Object.keys(values.headers).length === 0) delete payload.headers;
@@ -105,7 +98,6 @@ export function MonitorFormPage() {
       </div>
 
       <MonitorForm
-        // Keyed so switching between monitors resets the form state.
         key={monitorId ?? 'new'}
         initialValues={initialValues}
         channels={channelsQuery.data?.data ?? []}

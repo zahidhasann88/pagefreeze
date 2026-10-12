@@ -16,11 +16,6 @@ import { hashPassword } from '../../src/crypto/password.js';
 import type { Database } from '../../src/db/pool.js';
 import { AppError } from '../../src/api/errors.js';
 
-/**
- * A Database double that stores sessions and tokens in memory, so the auth flow can be
- * exercised end to end without PostgreSQL. The real database path is covered by the
- * integration suite.
- */
 function fakeDb() {
   const sessions = new Map<string, Record<string, unknown>>();
   const tokens = new Map<string, Record<string, unknown>>();
@@ -78,7 +73,6 @@ function fakeDb() {
 
   return { db, sessions, tokens, queryMock: db.query as unknown as ReturnType<typeof vi.fn> };
 }
-
 interface FakeRequest {
   headers: Record<string, string | undefined>;
   cookies: Record<string, string | undefined>;
@@ -111,7 +105,6 @@ function makeReply() {
     },
   };
 }
-
 interface TestAuthOptions extends AuthOptions {
   queryMock: ReturnType<typeof vi.fn>;
 }
@@ -275,7 +268,6 @@ describe('logout', () => {
     expect(logoutReply.cleared).toContain(SESSION_COOKIE);
     expect(logoutReply.cleared).toContain(CSRF_COOKIE);
 
-    // The token no longer resolves.
     await expect(
       requireAuth(options)(makeRequest({ cookies: { [SESSION_COOKIE]: token } }) as never),
     ).rejects.toMatchObject({
@@ -331,7 +323,6 @@ describe('requireAuth', () => {
     const options = await makeAuthOptions();
     const generated = generateToken('pfz');
 
-    // Seed the token store the way createApiToken would.
     options.queryMock.mockImplementationOnce(
       async () =>
         ({

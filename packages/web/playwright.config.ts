@@ -1,16 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * End-to-end configuration.
- *
- * Playwright starts the whole stack itself (fixture site, database-backed server, built
- * SPA) through `pnpm --filter @pagefreeze/server e2e-server`, waits for the readiness
- * probe, runs the specs against a real browser, and tears it down afterwards.
- *
- * Requirements: a reachable PostgreSQL (DATABASE_URL_TEST) and the Chromium build that
- * `playwright install chromium` provides.
- */
-
 const APP_PORT = Number.parseInt(process.env['E2E_PORT'] ?? '8092', 10);
 const BASE_URL = process.env['E2E_BASE_URL'] ?? `http://127.0.0.1:${APP_PORT}`;
 

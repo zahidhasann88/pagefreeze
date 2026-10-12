@@ -9,14 +9,6 @@ import { encryptJson } from '../../crypto/secrets.js';
 import { buildTestEvent } from '../../notify/events.js';
 import { resolveChannelConfig } from '../../jobs/captureJob.js';
 
-/**
- * Notification channels.
- *
- * The `config` column stores only the non-secret view (webhook URL, recipients); the full
- * config including any HMAC signing secret is stored encrypted in `config_enc`. Only the
- * non-secret view is ever returned, so a signing key cannot be read back out of the API
- * once the channel exists.
- */
 function sanitizeConfig(type: string, config: Record<string, unknown>): Record<string, unknown> {
   if (type === 'email') {
     return {
@@ -24,7 +16,7 @@ function sanitizeConfig(type: string, config: Record<string, unknown>): Record<s
       ...(typeof config['subject'] === 'string' ? { subject: config['subject'] } : {}),
     };
   }
-  // webhook and slack: keep the url, record whether a secret exists but never its value.
+
   return {
     url: config['url'] ?? '',
     hasSecret: Boolean(config['secret']),
@@ -106,11 +98,6 @@ export async function registerChannelRoutes(app: AppInstance, deps: AppDeps): Pr
     },
   );
 
-  /**
-   * Send a test notification through the channel and report the delivery result.
-   * This is the only endpoint that surfaces a delivery error string to the client, and
-   * it never includes the destination secret.
-   */
   app.post(
     '/channels/:id/test',
     { preHandler: requireAuthenticated(deps.auth) },

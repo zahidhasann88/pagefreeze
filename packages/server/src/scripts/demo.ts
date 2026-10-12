@@ -1,34 +1,15 @@
 import { FixtureServer } from '../fixtures/fixtureServer.js';
 import { start, type StartedApp } from '../index.js';
 import { ApiClient } from './apiClient.js';
-
-/**
- * `pnpm demo`
- *
- * Boots the whole product against a fixture website that mutates on a timer, creates two
- * monitors, and drives real captures so a new user sees working diffs within a minute of
- * cloning the repository.
- *
- * What it starts:
- *   - the fixture site (a fake "Acme Cloud pricing" page) on an ephemeral loopback port
- *   - the Pagefreeze API + scheduler + capture worker in this process
- *
- * Because the fixture is on loopback, the demo sets PAGEFREEZE_ALLOWED_HOSTS for exactly
- * that host:port. That is the documented escape hatch for lab setups; it does not disable
- * the SSRF guard, it exempts one host, and every redirect away from it is still checked.
- */
-
+/** Local demo credentials and fixtures are for development only. */
 export interface DemoOptions {
   databaseUrl?: string;
   port?: number;
   adminPassword?: string;
-  /** How often the fixture page changes. */
   mutateEveryMs?: number;
-  /** Keep the process alive serving the UI. */
   keepRunning?: boolean;
   log?: (message: string) => void;
 }
-
 export interface DemoHandle {
   baseUrl: string;
   fixtureUrl: string;
@@ -128,16 +109,11 @@ export async function runDemo(options: DemoOptions = {}): Promise<DemoHandle> {
 
   return { baseUrl, fixtureUrl, adminPassword, monitors, stop };
 }
-
 interface MonitorResponse {
   id: string;
   name: string;
 }
 
-/**
- * Create the two demo monitors (idempotently) and run a first capture for each so the
- * dashboard is not empty when the user opens it.
- */
 export async function seedDemoMonitors(
   client: ApiClient,
   fixtureUrl: string,
@@ -184,7 +160,6 @@ export async function seedDemoMonitors(
     created.push({ id: response.data.id, name: response.data.name });
   }
 
-  // First capture for each, so there is a baseline to compare the next one against.
   for (const monitor of created) {
     await client.post(`/api/v1/monitors/${monitor.id}/capture`);
   }

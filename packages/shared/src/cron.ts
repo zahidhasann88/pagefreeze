@@ -1,21 +1,3 @@
-/**
- * A small, dependency-free 5-field cron parser.
- *
- * Supported syntax (Vixie-style):
- *   field: minute(0-59) hour(0-23) day-of-month(1-31) month(1-12) day-of-week(0-7, 0 and 7 = Sunday)
- *   values: `*`, `n`, `a-b`, `a-b` with step, `*` with step, and comma separated lists
- *   of any of those. Three letter names are accepted for month (`jan`) and
- *   day-of-week (`mon`). `?` is accepted for day-of-month and day-of-week and
- *   behaves like `*`.
- *
- * Day-of-month / day-of-week follow the Vixie rule: when both fields are restricted
- * (i.e. not `*` or `?`) a day matches when *either* field matches; when only one is
- * restricted, only that one is considered.
- *
- * All evaluation is done in UTC. Pagefreeze schedules everything in UTC and the UI
- * renders the resulting timestamps in the viewer's local timezone.
- */
-
 export class CronParseError extends Error {
   constructor(message: string) {
     super(message);
@@ -47,24 +29,19 @@ const DOW_NAMES: Record<string, number> = {
   fri: 5,
   sat: 6,
 };
-
 export interface CronExpression {
-  /** Raw, trimmed expression as supplied by the user. */
   readonly raw: string;
   readonly minutes: ReadonlySet<number>;
   readonly hours: ReadonlySet<number>;
   readonly daysOfMonth: ReadonlySet<number>;
   readonly months: ReadonlySet<number>;
   readonly daysOfWeek: ReadonlySet<number>;
-  /** True when day-of-month was explicitly restricted (not `*` / `?`). */
   readonly domRestricted: boolean;
-  /** True when day-of-week was explicitly restricted (not `*` / `?`). */
   readonly dowRestricted: boolean;
 }
 
 const FIELD_COUNT = 5;
 
-/** Cache parse results: the same expression is parsed many times (render, validate, schedule). */
 const parseCache = new Map<string, CronExpression>();
 
 function parseField(
@@ -116,7 +93,6 @@ function parseField(
       start = parseValue(left, min, max, names, label);
       end = parseValue(right, min, max, names, label);
       if (start > end) {
-        // Ranges may wrap (e.g. `fri-sun` or `22-2`); expand through the boundary.
         for (let v = start; v <= max; v += step) values.add(v);
         for (let v = min; v <= end; v += step) values.add(v);
         continue;
@@ -162,7 +138,6 @@ function parseValue(
   return value;
 }
 
-/** Parse a cron expression. Throws {@link CronParseError} when invalid. */
 export function parseCron(expression: string): CronExpression {
   const key = String(expression ?? '');
   const cached = parseCache.get(key);
@@ -183,7 +158,6 @@ export function parseCron(expression: string): CronExpression {
   const months = parseField(monthF, 1, 12, MONTH_NAMES, 'month');
   const dow = parseField(dowF, 0, 7, DOW_NAMES, 'day-of-week');
 
-  // Normalise day-of-week: 7 means Sunday, same as 0.
   const dowValues = new Set<number>();
   for (const v of dow.values) dowValues.add(v === 7 ? 0 : v);
 
@@ -246,10 +220,6 @@ function startOfNextDay(t: number): number {
   return t - (t % 86_400_000) + 86_400_000;
 }
 
-/**
- * First run at or after `from`, scanning at most `maxYears` into the future.
- * Returns `null` when nothing matches inside that window.
- */
 export function nextRunAfter(expr: CronExpression, from: Date, maxYears = 5): Date | null {
   const minutes = [...expr.minutes].sort((a, b) => a - b);
   const hours = [...expr.hours].sort((a, b) => a - b);
@@ -260,7 +230,7 @@ export function nextRunAfter(expr: CronExpression, from: Date, maxYears = 5): Da
 
   let guard = 0;
   while (t <= limit) {
-    if (guard++ > 2_000_000) return null; // pathological expression, bail out
+    if (guard++ > 2_000_000) return null;
     const d = new Date(t);
     const y = d.getUTCFullYear();
     const mo = d.getUTCMonth() + 1;
@@ -306,7 +276,6 @@ export function nextRunAfter(expr: CronExpression, from: Date, maxYears = 5): Da
   return null;
 }
 
-/** Convenience wrapper that parses first. Returns `null` for invalid expressions. */
 export function nextRunAfterExpression(expression: string, from: Date, maxYears = 5): Date | null {
   try {
     return nextRunAfter(parseCron(expression), from, maxYears);
@@ -317,13 +286,6 @@ export function nextRunAfterExpression(expression: string, from: Date, maxYears 
 
 const minGapCache = new Map<string, number | null>();
 
-/**
- * Smallest gap (in minutes) between two consecutive runs, sampled over the next
- * ~400 days. Returns `null` when fewer than two runs exist in the window (for example
- * `0 0 29 2 *`), in which case a minimum-interval check cannot be applied.
- *
- * Bounded work: at most 200 occurrences are enumerated.
- */
 export function cronMinGapMinutes(expression: string): number | null {
   const key = String(expression ?? '');
   if (minGapCache.has(key)) return minGapCache.get(key) ?? null;
@@ -372,7 +334,7 @@ function pad2(n: number): string {
 function describeSet(values: ReadonlySet<number>, unit: string): string {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 1) return `${sorted[0]}`;
-  // Contiguous?
+
   let contiguous = true;
   for (let i = 1; i < sorted.length; i += 1) {
     if (sorted[i] !== sorted[i - 1]! + 1) {
@@ -403,10 +365,6 @@ const MONTH_LABELS = [
 
 const DOW_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/**
- * Human readable description of a cron expression. Intentionally simple and
- * deterministic; it is used for form feedback and the monitor list.
- */
 export function describeCron(expression: string): string {
   let expr: CronExpression;
   try {
@@ -419,20 +377,17 @@ export function describeCron(expression: string): string {
   const allDays = !expr.domRestricted && !expr.dowRestricted;
   const everyMonth = expr.months.size === 12;
 
-  // Time of day, when the expression resolves to a single hour/minute pair.
   const hourList = [...expr.hours].sort((a, b) => a - b);
   const minuteList = [...expr.minutes].sort((a, b) => a - b);
   const singleTime = hourList.length === 1 && minuteList.length === 1;
 
   const timePart = singleTime ? `${pad2(hourList[0]!)}:${pad2(minuteList[0]!)} UTC` : null;
 
-  // "Every N minutes"
   if (allDays && everyMonth && expr.minutes.size > 1 && expr.hours.size === 24) {
     const step = detectStep(minuteList, 60);
     if (step !== null) return `Every ${step} minutes`;
   }
 
-  // "Every N hours"
   if (allDays && everyMonth && minuteList.length === 1 && expr.hours.size > 1) {
     const step = detectStep(hourList, 24);
     if (step !== null && minuteList[0] === 0) return `Every ${step} hours`;
@@ -442,7 +397,6 @@ export function describeCron(expression: string): string {
 
   const segments: string[] = [];
 
-  // Day part
   if (allDays) {
     // nothing
   } else if (expr.domRestricted && expr.dowRestricted) {

@@ -1,28 +1,10 @@
 import type { Page } from 'playwright';
 
-/**
- * Content extraction.
- *
- * The visible text and the rendered HTML are both taken from the *post-stabilisation*
- * DOM so that they describe exactly what the screenshot shows.
- */
-
-/**
- * `document.body.innerText`, whitespace-normalised.
- *
- * innerText is used rather than textContent because it reflects what is actually
- * visible: it skips `display:none` content and inserts line breaks at block boundaries,
- * which makes the resulting text diff readable.
- *
- * Normalisation: CRLF/CR to LF, non-breaking and zero-width spaces collapsed, tabs and
- * runs of spaces to a single space, trailing whitespace stripped per line, and runs of
- * three or more blank lines collapsed to two.
- */
 export async function extractVisibleText(page: Page): Promise<string> {
   const text = await page.evaluate(() => {
     const body = document.body;
     if (!body) return '';
-    // innerText forces layout; fall back to textContent when it is unavailable.
+
     const raw = typeof body.innerText === 'string' ? body.innerText : (body.textContent ?? '');
     return raw;
   });
@@ -42,7 +24,6 @@ export function normalizeVisibleText(text: string): string {
     .trim();
 }
 
-/** Extract text from a subtree only (used with a capture selector). */
 export async function extractTextFromSelector(
   page: Page,
   selector: string,
@@ -63,7 +44,6 @@ export async function extractHtml(page: Page): Promise<string> {
   return page.content();
 }
 
-/** Extract only the outer HTML of a matched element, or null when it is absent. */
 export async function extractHtmlFromSelector(
   page: Page,
   selector: string,
@@ -74,12 +54,10 @@ export async function extractHtmlFromSelector(
   await handle.dispose();
   return html;
 }
-
 export interface PageMeta {
   title: string | null;
   finalUrl: string;
   httpStatus: number | null;
-  /** Number of requests the page made, for diagnostics. */
   requestCount: number;
 }
 
@@ -96,10 +74,6 @@ export async function extractPageMeta(
   };
 }
 
-/**
- * Scroll to the top and settle layout before measuring. Without this a full-page
- * screenshot can start at a scrolled offset after `autoScroll`.
- */
 export async function resetScroll(page: Page): Promise<void> {
   // String form: see the note on `autoScroll` about serialised functions.
   await page

@@ -1,12 +1,5 @@
 import type { IncomingMessage } from 'node:http';
 
-/**
- * A very small HTTP client used by the demo and the seed script.
- *
- * It exists because those scripts have to talk to the real API - including cookie
- * sessions and CSRF - and pulling in a client library just for them is not worth a
- * dependency. Node's own fetch does not manage a cookie jar, so this keeps one.
- */
 export class ApiClient {
   private readonly cookies = new Map<string, string>();
   private csrf: string | null = null;
@@ -103,7 +96,6 @@ export class ApiClient {
     return this.request<T>('DELETE', path);
   }
 
-  /** Binary fetch, for downloading a screenshot during verification. */
   async buffer(path: string): Promise<{ status: number; contentType: string; body: Buffer }> {
     const headers: Record<string, string> = {};
     const cookie = this.cookieHeader();
@@ -119,7 +111,6 @@ export class ApiClient {
   }
 }
 
-/** Read a request body as a string, bounded so a large upload cannot exhaust memory. */
 export async function readBody(request: IncomingMessage, limit = 1024 * 1024): Promise<string> {
   const chunks: Buffer[] = [];
   let size = 0;

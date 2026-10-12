@@ -49,8 +49,6 @@ export function SettingsPage() {
   );
 }
 
-/* ------------------------------------------------------------------ tokens */
-
 function TokensCard() {
   const tokensQuery = useTokens();
   const create = useCreateToken();
@@ -210,9 +208,6 @@ function TokensCard() {
     </div>
   );
 }
-
-/* ---------------------------------------------------------------- channels */
-
 interface ChannelDraft {
   name: string;
   type: ChannelType;
@@ -491,8 +486,6 @@ function ChannelRow({
     </tr>
   );
 }
-
-/* ------------------------------------------------------------------ system */
 
 function SystemCard() {
   const info = useSystemInfo();

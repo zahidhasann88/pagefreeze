@@ -13,18 +13,10 @@ import type { Scheduler } from '../jobs/scheduler.js';
 import type { AuthOptions } from './auth.js';
 import type { Logger } from '../jobs/captureJob.js';
 
-/**
- * Everything the HTTP layer needs, gathered in one object.
- *
- * Routes depend on this rather than on module singletons, which is what makes the whole
- * API testable: an integration test builds the same object with a real database and a
- * fake notifier, and a unit test can build it with fakes throughout.
- */
 export interface AppDeps {
   config: AppConfig;
   db: Database;
   storage: StorageProvider;
-  /** The local provider exposes streaming reads; kept for the screenshot endpoints. */
   localStorage: LocalStorageProvider | null;
   browserPool: BrowserPool | null;
   guard: SsrfGuard;
@@ -35,9 +27,7 @@ export interface AppDeps {
   clock: Clock;
   logger: Logger;
   auth: AuthOptions;
-  /** Null when running in `api` mode on a box that should not schedule anything. */
   scheduler: Scheduler | null;
-  /** Runs one capture end to end; injected so tests can stub it. */
   executeCapture: (monitorId: string) => Promise<{
     monitorId: string;
     snapshotId: string | null;
@@ -48,11 +38,9 @@ export interface AppDeps {
     error: string | null;
     durationMs: number;
   }>;
-  /** Preview a capture without persisting anything (the "Test capture now" button). */
   previewCapture: (input: PreviewCaptureInput) => Promise<PreviewCaptureResult>;
   startedAt: Date;
 }
-
 export interface PreviewCaptureInput {
   url: string;
   devicePreset: 'desktop' | 'tablet' | 'mobile';
@@ -76,7 +64,6 @@ export interface PreviewCaptureInput {
     sameSite?: 'Lax' | 'Strict' | 'None';
   }>;
 }
-
 export interface PreviewCaptureResult {
   ok: boolean;
   error: string | null;
@@ -87,7 +74,6 @@ export interface PreviewCaptureResult {
   width: number | null;
   height: number | null;
   bytes: number;
-  /** base64 PNG, only for previews (never persisted). */
   screenshotBase64: string | null;
   textPreview: string;
   blockedRequests: Array<{ url: string; reason: string }>;

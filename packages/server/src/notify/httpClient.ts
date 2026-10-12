@@ -6,7 +6,6 @@ import type { HttpClient } from './notifier.js';
 type PostOptions = Parameters<HttpClient['post']>[0];
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
-/** Outbound delivery with pinned DNS, per-hop validation and bounded response reads. */
 export class FetchHttpClient implements HttpClient {
   constructor(private readonly guard = new SsrfGuard()) {}
 
@@ -46,7 +45,7 @@ export class FetchHttpClient implements HttpClient {
         return { status: response.status, body: response.body };
       }
       if (hops >= limit) throw new Error('webhook redirect limit exceeded');
-      // Preserve the signed POST body; never let a redirect bypass destination validation.
+
       url = new URL(response.location, url);
     }
   }

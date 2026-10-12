@@ -19,21 +19,8 @@ import {
 import { channelTestSchema } from '@pagefreeze/shared';
 import { toYaml } from './yaml.js';
 
-/**
- * Generate `api/openapi.yaml`.
- *
- * Request and query schemas are derived from the same zod schemas the server validates
- * with (`z.toJSONSchema(schema, { io: 'input' })`), so the specification cannot drift from
- * the runtime behaviour for those. Response bodies are described by hand: they are read
- * paths whose shape is decided by the row mappers, and pretending to derive them would
- * only add indirection.
- *
- * Run with `pnpm openapi`. CI fails if the committed file differs from the generated one.
- */
-
 type Json = Record<string, unknown>;
 
-/** Convert a zod schema into an OpenAPI-compatible JSON Schema fragment. */
 function fromZod(schema: z.ZodType, options: { io?: 'input' | 'output' } = {}): Json {
   const json = z.toJSONSchema(schema, { io: options.io ?? 'input' }) as Json;
   delete json['$schema'];
@@ -86,7 +73,6 @@ const textResponseSpec = (description: string): Json => ({
   content: { 'text/plain': { schema: { type: 'string' } } },
 });
 
-/** Response shapes, described once and referenced by the paths. */
 const responseSchemas: Record<string, Json> = {
   Monitor: {
     type: 'object',

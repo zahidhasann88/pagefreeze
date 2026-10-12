@@ -60,7 +60,7 @@ describe('ipv4ToInt', () => {
 
   it('rejects leading zeros, which some parsers read as octal', () => {
     // http://0177.0.0.1 is 127.0.0.1 to a C parser; treating it as a literal would let a
-    // blocked address through.
+
     expect(ipv4ToInt('0127.0.0.1')).toBeNull();
     expect(ipv4ToInt('127.00.0.1')).toBeNull();
   });
@@ -209,7 +209,7 @@ describe('classifyIpv6', () => {
       blocked: true,
       reason: 'private-network',
     });
-    // A mapped public address is fine.
+
     expect(classifyIpv6(expandIpv6('::ffff:8.8.8.8')!)).toBeNull();
   });
 
@@ -272,7 +272,7 @@ describe('isBlockedHostname', () => {
   it('allows ordinary public hostnames', () => {
     expect(isBlockedHostname('example.com')).toBeNull();
     expect(isBlockedHostname('pricing.example.co.uk')).toBeNull();
-    // A public hostname that merely contains the word is not blocked.
+
     expect(isBlockedHostname('localhost.example.com')).toBeNull();
   });
 
@@ -341,7 +341,7 @@ describe('SsrfGuard.checkUrl', () => {
   });
 
   it('blocks localhost by name without consulting DNS', async () => {
-    const resolver = stubResolver({ localhost: ['8.8.8.8'] }); // a lying resolver
+    const resolver = stubResolver({ localhost: ['8.8.8.8'] });
     const guard = new SsrfGuard({ resolver });
     const result = await guard.checkUrl('http://localhost:3000/');
     expect(result.allowed).toBe(false);
@@ -403,7 +403,7 @@ describe('SsrfGuard.checkUrl', () => {
     const guard = new SsrfGuard({ resolver, cacheTtlMs: 60_000 });
 
     expect((await guard.checkUrl('https://cached.example.com/')).allowed).toBe(true);
-    // Flip DNS to a blocked address: the cached verdict still applies until it expires.
+
     resolver.set('cached.example.com', ['127.0.0.1']);
     expect((await guard.checkUrl('https://cached.example.com/')).allowed).toBe(true);
 
@@ -427,7 +427,7 @@ describe('SsrfGuard.checkUrl', () => {
     expect((await guard.checkUrl('http://127.0.0.1:3000/')).allowed).toBe(true);
     expect((await guard.checkUrl('http://localhost:3000/')).allowed).toBe(true);
     expect((await guard.checkUrl('http://192.168.1.1/')).allowed).toBe(true);
-    // Non-http schemes stay blocked regardless: this flag is about address ranges.
+
     expect((await guard.checkUrl('file:///etc/passwd')).allowed).toBe(false);
   });
 
@@ -438,11 +438,11 @@ describe('SsrfGuard.checkUrl', () => {
     });
 
     expect((await guard.checkUrl('http://127.0.0.1:4000/pricing')).allowed).toBe(true);
-    // A different port on the same address is not exempt.
+
     expect((await guard.checkUrl('http://127.0.0.1:4001/')).allowed).toBe(false);
-    // Neither is another loopback address.
+
     expect((await guard.checkUrl('http://127.0.0.2:4000/')).allowed).toBe(false);
-    // The exemption does not affect unrelated checks.
+
     expect((await guard.checkUrl('https://public.example.com/')).allowed).toBe(true);
   });
 
@@ -454,9 +454,9 @@ describe('SsrfGuard.checkUrl', () => {
 
   it('an allowedHosts exemption does not let a redirect target through', async () => {
     const guard = new SsrfGuard({ allowedHosts: ['127.0.0.1:4000'], resolver: stubResolver({}) });
-    // The exempt host is fine...
+
     expect((await guard.checkUrl('http://127.0.0.1:4000/')).allowed).toBe(true);
-    // ...but the metadata address it might redirect to is not.
+
     expect((await guard.checkUrl('http://169.254.169.254/')).allowed).toBe(false);
   });
 });
@@ -484,7 +484,7 @@ describe('SsrfGuard.checkConnect', () => {
 describe('DNS rebinding', () => {
   it('is defeated because the guard validates every address the host resolves to', async () => {
     // Classic rebinding: the first lookup is public, the second is loopback. A guard that
-    // checks only at navigation time would allow the second request.
+
     let calls = 0;
     const resolver: Resolver = {
       async lookup() {
@@ -510,7 +510,6 @@ describe('DNS rebinding', () => {
 });
 
 describe('SsrfProxy', () => {
-  /** Send a raw request to the proxy and return everything it writes back. */
   function rawRequest(port: number, request: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const socket = netConnect({ host: '127.0.0.1', port }, () => {
@@ -575,7 +574,7 @@ describe('SsrfProxy', () => {
     expect(port).toBeGreaterThan(0);
     expect(proxy.getPort()).toBe(port);
     await proxy.close();
-    // Closing twice must not throw.
+
     await proxy.close();
     expect(proxy.getPort()).toBe(0);
   });
@@ -588,8 +587,6 @@ describe('SsrfProxy', () => {
         `GET ${target} HTTP/1.1\r\nHost: ${new URL(target).host}\r\nConnection: close\r\n\r\n`,
       );
 
-      // The proxy must parse the upstream response and emit its own status line. Piping raw
-      // bytes instead would hand the client a document whose body is the upstream headers.
       expect(raw.startsWith('HTTP/1.1 200')).toBe(true);
       expect(raw).toContain('origin reached');
       expect(raw).not.toContain(
@@ -622,7 +619,6 @@ describe('SsrfProxy', () => {
 
   it('refuses a CONNECT to a loopback port that is not exempted', async () => {
     await withProxy(async ({ proxyPort }) => {
-      // Only the origin's own host:port is exempt; another loopback port is still blocked.
       const raw = await rawRequest(
         proxyPort,
         'CONNECT 127.0.0.1:22 HTTP/1.1\r\nHost: 127.0.0.1:22\r\n\r\n',
@@ -643,8 +639,6 @@ describe('SsrfProxy', () => {
   });
 
   it('pins the upstream socket to the address the guard validated', async () => {
-    // The whole point of the proxy: the browser never resolves the hostname, so a name that
-    // flips to a private address between validation and connection cannot be reached.
     const guard = new SsrfGuard({
       resolver: stubResolver({ 'flipping.example': ['93.184.216.34'] }),
       cacheTtlMs: 0,

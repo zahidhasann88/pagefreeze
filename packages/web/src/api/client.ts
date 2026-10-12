@@ -1,11 +1,3 @@
-/**
- * API client for the SPA.
- *
- * Everything is same-origin: the server serves the built app and the API from one port,
- * so there is no CORS and no absolute URL to configure. That is also what lets the app run
- * on an isolated network with no external assets.
- */
-
 export const API_PREFIX = '/api/v1';
 
 export class ApiError extends Error {
@@ -21,7 +13,6 @@ export class ApiError extends Error {
     if (details !== undefined) this.details = details;
   }
 }
-
 export interface Page<T> {
   data: T[];
   nextCursor: string | null;
@@ -39,12 +30,10 @@ export function readCsrfCookie(): string | null {
 }
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
 interface RequestOptions {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
-  /** Skip JSON parsing (for binary responses). */
   raw?: boolean;
   query?: QueryParams;
 }
@@ -134,7 +123,6 @@ export const api = {
   delete: <T>(path: string) => apiRequest<T>(path, { method: 'DELETE' }),
 };
 
-/** Build a URL for an image `src`. Auth rides on the session cookie. */
 export function artifactUrl(path: string): string {
   return `${API_PREFIX}${path}`;
 }

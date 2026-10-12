@@ -17,12 +17,6 @@ if (!availability.ok) {
   console.warn(`\n[pagefreeze] share/compare tests SKIPPED: ${availability.reason}\n`);
 }
 
-/**
- * Share links and on-demand comparison.
- *
- * Both need real stored artefacts to be meaningful, so this suite drives a real capture
- * first and then exercises the read paths against it.
- */
 describeDb('share links and comparison', () => {
   let handle: TestApp;
   let monitor: Monitor;
@@ -47,7 +41,6 @@ describeDb('share links and comparison', () => {
     expect(created.status, created.text).toBe(201);
     monitor = created.data!;
 
-    // Baseline, then a changed capture.
     for (const round of [0, 1]) {
       if (round === 1) {
         fixture.setState({ price: '$59', terms: ['Rewritten terms.', 'A new clause.'] });
@@ -103,7 +96,6 @@ describeDb('share links and comparison', () => {
       token = response.data!.token;
       shareId = response.data!.id;
 
-      // 256 bits of randomness, url-safe alphabet.
       expect(token.length).toBeGreaterThan(40);
       expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
     });
@@ -142,7 +134,7 @@ describeDb('share links and comparison', () => {
       const after = await fetch(`${base}/screenshot/after`);
       expect(after.status).toBe(200);
       expect(after.headers.get('content-type')).toContain('image/png');
-      // Not cached: a revoked link must stop working immediately.
+
       expect(after.headers.get('cache-control')).toContain('no-store');
 
       if (change.hasDiffImage) {
@@ -178,12 +170,11 @@ describeDb('share links and comparison', () => {
     });
 
     it('grants nothing beyond the shared change', async () => {
-      // The token is not a session: the rest of the API still requires authentication.
       expect((await fetch(`${handle.baseUrl}/api/v1/monitors`)).status).toBe(401);
       expect(
         (await fetch(`${handle.baseUrl}/api/v1/snapshots/${snapshots[0]!.id}/screenshot`)).status,
       ).toBe(401);
-      // A neighbouring monitor's artefacts are not reachable through this token either.
+
       expect(
         (await fetch(`${handle.baseUrl}/api/v1/share/${token}/screenshot/diff`)).status === 200 ||
           (await fetch(`${handle.baseUrl}/api/v1/share/${token}/screenshot/diff`)).status === 404,
@@ -199,7 +190,6 @@ describeDb('share links and comparison', () => {
         404,
       );
 
-      // Revoking twice is a 404, not an error.
       expect((await handle.client.delete(`/api/v1/shares/${shareId}`)).status).toBe(404);
     });
 
@@ -210,7 +200,6 @@ describeDb('share links and comparison', () => {
       );
       expect(created.status).toBe(201);
 
-      // Move the expiry into the past directly: waiting an hour is not an option in a test.
       const { newClient } = await import('./helpers.js');
       const db = newClient();
       await db.connect();
@@ -288,7 +277,7 @@ describeDb('share links and comparison', () => {
         b: newer.id,
         store: 'true',
       });
-      // One change per target snapshot: re-running updates the row instead of adding one.
+
       expect(second.data?.changeId).toBe(first.data?.changeId);
     });
 
@@ -298,7 +287,6 @@ describeDb('share links and comparison', () => {
         url: `${fixtureUrlOf(handle)}/static`,
       });
 
-      // Capture once for the other monitor so it has a snapshot to compare with.
       await handle.client.post(`/api/v1/monitors/${other.data!.id}/capture`);
       const otherSnapshots = await waitFor(
         async () =>
@@ -367,7 +355,6 @@ describeDb('share links and comparison', () => {
       expect(response.data?.diff.sizeFrom).toBeTruthy();
       expect(response.data?.diff.sizeTo).toBeTruthy();
 
-      // And the recorded change carries the same information for the viewer.
       const changes = await handle.client.get<Page<Change>>(
         `/api/v1/monitors/${tall.data!.id}/changes`,
         { limit: 5 },

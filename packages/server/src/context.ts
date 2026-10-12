@@ -19,7 +19,6 @@ import { createMailer } from './notify/mailer.js';
 import { previewCapture } from './capture/preview.js';
 import type { AppDeps } from './api/deps.js';
 import type { AuthOptions } from './api/auth.js';
-
 export interface AppContext {
   config: AppConfig;
   logger: Logger;
@@ -29,33 +28,21 @@ export interface AppContext {
   browserPool: BrowserPool | null;
   diffEngine: DiffEngine;
   metrics: MetricsRegistry;
-  /** Stop background work, close the browser, the queue and the pool. */
   shutdown(): Promise<void>;
 }
-
 export interface CreateContextOptions {
   config: AppConfig;
   logger: Logger;
-  /** Injected by tests. */
   db?: Database;
   clock?: Clock;
   metrics?: MetricsRegistry;
-  /** Skip starting pg-boss (API-only mode, or tests that drive captures directly). */
   disableScheduler?: boolean;
-  /** Skip launching Chromium (tests that only exercise the HTTP layer). */
   disableBrowser?: boolean;
   keyProvider?: KeyProvider;
   diffEngine?: DiffEngine;
   storage?: LocalStorageProvider;
 }
 
-/**
- * Wire the whole application together.
- *
- * Everything is constructed against an interface (Database, StorageProvider, BrowserPool,
- * DiffEngine, Notifier, Clock) so a test can substitute any one of them without touching
- * the rest.
- */
 export async function createContext(options: CreateContextOptions): Promise<AppContext> {
   const config = options.config;
   const logger = options.logger;
@@ -90,7 +77,7 @@ export async function createContext(options: CreateContextOptions): Promise<AppC
         concurrency: config.captureConcurrency,
         launchOptions: {
           // Chromium's own sandbox needs user namespaces; in an unprivileged container
-          // that is often unavailable, hence the escape hatch.
+
           chromiumSandbox: !config.disableChromiumSandbox,
           args: [
             '--no-first-run',
@@ -187,10 +174,6 @@ export async function createContext(options: CreateContextOptions): Promise<AppC
     },
   };
 
-  // ---------------------------------------------------------------------------
-  // Scheduler. Only the `worker` and `all` modes own schedules: two API replicas
-  // registering the same cron would be harmless (pg-boss de-duplicates) but wasteful.
-  // ---------------------------------------------------------------------------
   const shouldSchedule =
     !options.disableScheduler && (config.mode === 'all' || config.mode === 'worker');
 

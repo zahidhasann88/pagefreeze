@@ -4,22 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Change, Monitor, Snapshot } from '@pagefreeze/shared';
 import { MonitorDetailPage } from './MonitorDetailPage.js';
-
-/**
- * Timeline consistency tests.
- *
- * A capture writes its snapshot row first and its change row a moment later, after the
- * diff has been computed, and the snapshots/changes queries poll on independent
- * intervals. These tests pin the behaviour that keeps the timeline honest across that
- * gap:
- *
- *  1. A snapshot whose changeId is set must never render as a "baseline" row while the
- *     changes query is still serving its pre-diff page.
- *  2. Polling must not settle until the change object itself has arrived — settling on
- *     the bare changeId froze the timeline on the stale changes page (the race behind a
- *     flaky end-to-end run).
- */
-
+/** Snapshots can arrive before their change rows. Pending comparisons must not be shown as baseline captures. */
 interface Page<T> {
   data: T[];
   nextCursor: string | null;
@@ -164,11 +149,6 @@ function snapshotCalls(): number {
   return mockState.counts.get(SNAPSHOTS_PATH) ?? 0;
 }
 
-/**
- * Flush pending promise work under fake timers without reaching the 2s poll tick.
- * Two rounds: the first resolves the monitor query and mounts the timeline, the second
- * resolves the timeline's own snapshots/changes fetches.
- */
 async function flush(): Promise<void> {
   for (let round = 0; round < 2; round += 1) {
     await act(async () => {
@@ -204,8 +184,6 @@ beforeEach(() => {
 
 describe('monitor timeline consistency', () => {
   it('never labels a snapshot with a pending change as a baseline capture', async () => {
-    // The snapshots query already sees the new row (changeId set); the changes query is
-    // still serving its pre-diff page. This is the exact window the diff creates.
     setResponses({
       snapshots: [makeSnapshot({ id: 's2', changeId: 'c1' }), makeSnapshot({ id: 's1' })],
       changes: [],
@@ -245,7 +223,6 @@ describe('monitor timeline consistency', () => {
       await flush();
       expect(screen.getByText(/Baseline capture/)).toBeInTheDocument();
 
-      // The second capture lands while the changes query is still stale.
       setResponses({ snapshots: [s2, s1] });
 
       await act(async () => {
@@ -256,21 +233,17 @@ describe('monitor timeline consistency', () => {
 
       const beforePoll = snapshotCalls();
 
-      // Settling on the bare changeId would stop polling here and freeze the timeline on
-      // the stale changes page; polling must continue while the change is not loaded.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2100);
       });
       expect(snapshotCalls()).toBeGreaterThan(beforePoll);
 
-      // When the changes query finally serves the change, the row becomes the link.
       setResponses({ changes: [makeChange()] });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2100);
       });
       expect(screen.getByRole('link', { name: /significant change/i })).toBeInTheDocument();
 
-      // Both queries agree now, so polling settles and no further fetches happen.
       const settledCalls = snapshotCalls();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(6300);

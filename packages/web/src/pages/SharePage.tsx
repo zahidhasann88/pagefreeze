@@ -7,14 +7,6 @@ import { AbsoluteTime, Alert, ErrorState, LoadingState, percentLabel } from '../
 import { Logo } from '../components/Icons.js';
 import { VisualDiff } from '../viewer/VisualDiff.js';
 
-/**
- * Public share view.
- *
- * Deliberately minimal: no navigation, no links into the rest of the app, and no way to
- * reach anything other than the single shared change. Artefacts are loaded through the
- * token-scoped endpoints, so holding a share link never widens access to the monitor's
- * history.
- */
 export function SharePage() {
   const { token = '' } = useParams<{ token: string }>();
   const [tab, setTab] = useState<'visual' | 'summary'>('visual');

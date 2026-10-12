@@ -4,13 +4,11 @@ import { Worker } from 'node:worker_threads';
 import type { DiffRequest, DiffResult } from './types.js';
 import { DEFAULT_DIFF_OPTIONS } from './types.js';
 import { runDiffInProcess } from './runDiff.js';
-
 export interface DiffEngine {
   diff(request: DiffRequest): Promise<DiffResult>;
   close(): Promise<void>;
 }
 
-/** Diffing on the calling thread. Used by tests and when `diffUseWorker` is off. */
 export class InProcessDiffEngine implements DiffEngine {
   async diff(request: DiffRequest): Promise<DiffResult> {
     return runDiffInProcess(request);
@@ -21,13 +19,6 @@ export class InProcessDiffEngine implements DiffEngine {
   }
 }
 
-/**
- * Resolve the worker entry point.
- *
- * A compiled build runs `dist/diff/worker.js` directly. Under `tsx` (dev) or vitest the
- * source `.ts` file is used instead, with tsx registered through `--import`; if tsx
- * cannot be resolved the caller falls back to in-process diffing.
- */
 export function resolveWorkerEntry(): { file: URL; execArgv: string[] } | null {
   const here = new URL('.', import.meta.url);
   const jsPath = new URL('worker.js', here);
@@ -45,19 +36,12 @@ export function resolveWorkerEntry(): { file: URL; execArgv: string[] } | null {
 
   return { file: tsPath, execArgv: ['--import', 'tsx'] };
 }
-
 interface PendingCall {
   resolve: (value: DiffResult) => void;
   reject: (reason: Error) => void;
   timer: NodeJS.Timeout;
 }
 
-/**
- * Runs diffing in a dedicated worker thread so the event loop stays responsive while
- * large screenshots are compared. The worker is started lazily and restarted once if it
- * dies; on repeated failure the engine degrades to in-process diffing rather than
- * dropping captures.
- */
 export class WorkerDiffEngine implements DiffEngine {
   private worker: Worker | null = null;
   private pending: PendingCall | null = null;
@@ -90,7 +74,6 @@ export class WorkerDiffEngine implements DiffEngine {
           if (!call) return;
           clearTimeout(call.timer);
           if (message.ok) {
-            // Buffers survive structured clone as Uint8Array; restore the Buffer type.
             const result = message.result;
             if (result.diffImage && !Buffer.isBuffer(result.diffImage)) {
               result.diffImage = Buffer.from(result.diffImage);
@@ -166,7 +149,7 @@ export class WorkerDiffEngine implements DiffEngine {
     } catch (error) {
       this.broken = true;
       await this.close();
-      // Never lose a comparison because of worker plumbing.
+
       return runDiffInProcess(request);
     }
   }

@@ -5,18 +5,6 @@ import * as queries from '../db/queries.js';
 import { encryptJson, randomTokenUrl, sha256Hex } from '../crypto/secrets.js';
 import { StaticKeyProvider } from '../crypto/secrets.js';
 import { scheduleToCron } from '@pagefreeze/shared';
-
-/**
- * `pnpm seed`
- *
- * Writes a small, self-consistent set of rows straight into the database: two monitors, a
- * webhook channel and an API token. It does not capture anything - use `pnpm demo` for a
- * running system with real snapshots.
- *
- * Useful for frontend work and for checking that a fresh deployment comes up with
- * something on screen.
- */
-
 export interface SeedOptions {
   databaseUrl?: string;
   baseUrl?: string;

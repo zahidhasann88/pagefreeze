@@ -90,7 +90,7 @@ describe('AES-256-GCM round trip', () => {
     const provider = key();
     const blob = encryptString('secret value', provider);
     const raw = Buffer.from(blob, 'base64');
-    // Flip a bit in the last byte (part of the ciphertext).
+
     raw[raw.length - 1] = (raw[raw.length - 1] ?? 0) ^ 0x01;
     expect(() => decryptString(raw.toString('base64'), provider)).toThrow(SecretError);
   });

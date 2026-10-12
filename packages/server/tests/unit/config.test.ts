@@ -202,7 +202,6 @@ describe('loadConfig', () => {
     const keyFile = join(dir, '.dev-secret-key');
     expect(readFileSync(keyFile, 'utf8').trim()).toBe(first.secretKey.toString('base64'));
 
-    // A restart must reuse the same key, otherwise stored secrets become unreadable.
     const second = loadConfig({
       overrides: { ...baseEnv, PAGEFREEZE_SECRET_KEY: undefined, PAGEFREEZE_DATA_DIR: dir },
     });
@@ -319,8 +318,7 @@ describe('LocalStorageProvider', () => {
   it('treats an absolute-looking key as relative to the root, never as a filesystem path', () => {
     const root = tempDir();
     const storage = new LocalStorageProvider(root);
-    // A leading slash is stripped, so `/etc/passwd` lands inside the data directory rather
-    // than at the real /etc/passwd.
+
     expect(storage.resolve('/etc/passwd')).toBe(join(root, 'etc/passwd'));
     expect(storage.resolve('./x.txt')).toBe(join(root, 'x.txt'));
   });
@@ -338,7 +336,7 @@ describe('LocalStorageProvider', () => {
 
     await storage.delete('monitors/m1/snapshots/s1/page.html');
     expect(await storage.list('monitors/')).toEqual([]);
-    // The root itself survives.
+
     expect(storage.getRoot()).toBe(root);
   });
 

@@ -19,7 +19,6 @@ export const VISUAL_MODES: Array<{ value: VisualMode; label: string; hint: strin
   { value: 'onion', label: 'Onion skin', hint: 'Blend the two captures by opacity' },
   { value: 'diff', label: 'Highlighted diff', hint: 'Changed pixels, with region boxes' },
 ];
-
 export interface VisualDiffProps {
   beforeUrl: string | null;
   afterUrl: string;
@@ -29,18 +28,10 @@ export interface VisualDiffProps {
   sizeChanged: boolean;
   sizeFrom: { width: number; height: number } | null;
   sizeTo: { width: number; height: number } | null;
-  /** Alt text for the "before" image. */
   beforeLabel: string;
   afterLabel: string;
 }
 
-/**
- * Pointer capture, guarded.
- *
- * `setPointerCapture` is what keeps a drag alive when the pointer leaves the element, but it
- * is absent in some engines and throws when the pointer id is unknown. A failed capture only
- * means the drag stops at the element boundary, so it must never break the gesture.
- */
 function capturePointer(element: Element | null, pointerId: number): void {
   try {
     if (element && typeof element.setPointerCapture === 'function') {
@@ -68,20 +59,12 @@ function releasePointer(element: Element | null, pointerId: number): void {
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
 const SCALE_STEP = 1.25;
-
 interface Viewport {
   scale: number;
   x: number;
   y: number;
 }
 
-/**
- * Zoomable, pannable image viewport.
- *
- * Pointer drag pans; ctrl/⌘ + wheel zooms towards the cursor; the toolbar buttons and the
- * keyboard (+, -, 0, arrow keys) do the same for anyone not using a mouse. The container is
- * focusable with `tabIndex={0}` and labelled, so it is reachable and announced.
- */
 function ZoomPanViewport({
   children,
   scale,
@@ -122,8 +105,6 @@ function ZoomPanViewport({
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    // Only the primary button, and never when the pointer started on an interactive child
-    // such as the slider handle or a region box.
     if (event.button !== 0) return;
     const target = event.target as HTMLElement;
     if (target.closest('[data-no-pan]')) return;
@@ -247,7 +228,6 @@ export function VisualDiff(props: VisualDiffProps) {
   const [failed, setFailed] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  /** Learn the natural size of the "after" image so overlays can be positioned in pixels. */
   useLayoutEffect(() => {
     setLoading(true);
     setFailed(null);
@@ -270,7 +250,6 @@ export function VisualDiff(props: VisualDiffProps) {
   const width = dimensions?.width ?? 0;
   const height = dimensions?.height ?? 0;
 
-  /** Fit-to-width on first load and whenever the image size changes. */
   useEffect(() => {
     if (!width || !containerRef.current) return;
     const available = containerRef.current.clientWidth - 4;
@@ -282,7 +261,7 @@ export function VisualDiff(props: VisualDiffProps) {
   const setScale = useCallback((next: number, anchor?: { x: number; y: number }) => {
     setViewport((current) => {
       if (!anchor) return { ...current, scale: next };
-      // Keep the point under the cursor fixed while zooming.
+
       const ratio = next / current.scale;
       return {
         scale: next,
@@ -311,7 +290,6 @@ export function VisualDiff(props: VisualDiffProps) {
       <div className="viewer-toolbar">
         <div className="viewer-toolbar__group" role="group" aria-label="Visual comparison mode">
           {VISUAL_MODES.map((option) => {
-            // Side-by-side needs two images; with no baseline it is not a real choice.
             const disabled = option.value === 'side-by-side' && !beforeUrl;
             return (
               <button
@@ -493,8 +471,6 @@ export function VisualDiff(props: VisualDiffProps) {
   );
 }
 
-/* ------------------------------------------------------------------ modes */
-
 function SplitView({
   beforeUrl,
   afterUrl,
@@ -542,13 +518,6 @@ function SplitView({
   );
 }
 
-/**
- * Before/after wipe.
- *
- * The handle is a real range input (visually hidden, still focusable) driving the same
- * value as pointer dragging on the image, so the wipe works with a mouse, a touchscreen,
- * a keyboard and a screen reader without three separate code paths.
- */
 function SliderView({
   beforeUrl,
   afterUrl,

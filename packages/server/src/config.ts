@@ -24,7 +24,6 @@ const configSchema = z.object({
   databasePoolMax: numberish.int().min(1).max(100).default(10),
   databaseSsl: booleanish.default(false),
 
-  /** 32 raw bytes, base64 encoded. Used for AES-256-GCM of monitor secrets. */
   secretKey: z.instanceof(Buffer).refine((b) => b.length === 32, {
     error: 'secretKey must decode to exactly 32 bytes',
   }),
@@ -34,7 +33,7 @@ const configSchema = z.object({
 
   dataDir: z.string().min(1).default('./data'),
   logLevel: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  /** Absolute base URL used to build share links. Empty means "derive from the request". */
+
   baseUrl: z.string().default(''),
 
   captureConcurrency: numberish.int().min(1).max(32).default(2),
@@ -99,11 +98,8 @@ const configSchema = z.object({
 });
 
 export type AppConfig = z.output<typeof configSchema>;
-
 export interface LoadConfigOptions {
-  /** Overrides applied on top of the environment (used by tests). */
   overrides?: Record<string, string | undefined>;
-  /** When true, skip side effects such as writing a development secret key. */
   skipSecretPersistence?: boolean;
 }
 

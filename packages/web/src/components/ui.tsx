@@ -3,8 +3,6 @@ import type { MonitorStatus } from '@pagefreeze/shared';
 import { ApiError } from '../api/client.js';
 import { IconAlert, IconCheck, IconCopy, IconInbox } from './Icons.js';
 
-/* ------------------------------------------------------------------ feedback */
-
 export function Spinner({ large = false, label = 'Loading' }: { large?: boolean; label?: string }) {
   return (
     <span className={large ? 'spinner spinner--lg' : 'spinner'} role="status" aria-label={label} />
@@ -39,7 +37,6 @@ export function EmptyState({
   );
 }
 
-/** Human text for an API error, including the field-level details from zod. */
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     const details = error.details as Array<{ path: string; message: string }> | undefined;
@@ -93,8 +90,6 @@ export function Alert({
   );
 }
 
-/* -------------------------------------------------------------------- status */
-
 const STATUS_LABEL: Record<MonitorStatus, string> = {
   ok: 'OK',
   changed: 'Changed',
@@ -115,12 +110,6 @@ export function Tag({ children }: { children: ReactNode }) {
   return <span className="tag">{children}</span>;
 }
 
-/* ----------------------------------------------------------------- sparkline */
-
-/**
- * Change-count sparkline. Bars are marked up as a list with an accessible summary rather
- * than an inline SVG, so the trend is available to screen readers too.
- */
 export function Sparkline({ values, title }: { values: number[]; title?: string }) {
   const max = Math.max(1, ...values);
   const total = values.reduce((sum, value) => sum + value, 0);
@@ -138,8 +127,6 @@ export function Sparkline({ values, title }: { values: number[]; title?: string 
     </span>
   );
 }
-
-/* -------------------------------------------------------------------- copy */
 
 export function CopyButton({
   value,
@@ -165,7 +152,6 @@ export function CopyButton({
       await navigator.clipboard.writeText(value);
       setCopied(true);
     } catch {
-      // Clipboard access is denied in some contexts; fall back to a selectable prompt.
       const field = document.createElement('textarea');
       field.value = value;
       field.setAttribute('readonly', '');
@@ -190,8 +176,6 @@ export function CopyButton({
     </button>
   );
 }
-
-/* ------------------------------------------------------------------- time */
 
 /**
  * Relative time with an absolute title. Rendered from the viewer's locale, while all
@@ -233,8 +217,6 @@ export function AbsoluteTime({ value }: { value: string | null | undefined }) {
     </time>
   );
 }
-
-/* --------------------------------------------------------------- pagination */
 
 /**
  * Cursor pagination keeps a stack of previously seen cursors so "previous" works without
@@ -291,8 +273,6 @@ export function Pager({
     </div>
   );
 }
-
-/* ------------------------------------------------------------------- misc */
 
 export function bytesLabel(bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined) return '—';

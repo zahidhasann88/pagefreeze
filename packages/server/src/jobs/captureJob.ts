@@ -19,14 +19,12 @@ import { onFailure, onSuccess } from '../notify/failures.js';
 import { buildChangeEvent, buildFailureEvent, buildRecoveryEvent } from '../notify/events.js';
 import type { Notifier } from '../notify/notifier.js';
 import type { Clock } from '../util/clock.js';
-
 export interface Logger {
   info: (obj: unknown, msg?: string) => void;
   warn: (obj: unknown, msg?: string) => void;
   error: (obj: unknown, msg?: string) => void;
   debug: (obj: unknown, msg?: string) => void;
 }
-
 export interface CaptureJobDeps {
   db: Database;
   storage: StorageProvider;
@@ -36,22 +34,17 @@ export interface CaptureJobDeps {
   keyProvider: KeyProvider;
   capture: CaptureRunnerOptions;
   logger: Logger;
-  /** Options forwarded to the diff engine. */
   diffOptions: DiffRequest['options'];
-  /** Notify after a streak of this many consecutive failures. */
   failureNotifyThreshold: number;
-  /** Build an absolute link for notifications. Returns null when no base URL is known. */
   buildLink: (path: string) => string | null;
   metrics?: CaptureMetrics;
 }
-
 export interface CaptureMetrics {
   captureTotal(status: 'success' | 'failed'): void;
   captureDuration(seconds: number): void;
   changesTotal(significant: boolean): void;
   notificationsTotal(status: 'ok' | 'failed'): void;
 }
-
 export interface CaptureOutcome {
   monitorId: string;
   snapshotId: string | null;
@@ -64,13 +57,6 @@ export interface CaptureOutcome {
   attempt: AttemptResult | null;
 }
 
-/**
- * Execute one capture of one monitor, end to end.
- *
- * This is the single place where a snapshot becomes a change: capture, hash, de-duplicate,
- * store, compare, record and notify. It is called by the scheduled job, by the manual
- * `POST /monitors/:id/capture` endpoint and by the test-capture preview path.
- */
 export async function executeCapture(
   monitorId: string,
   deps: CaptureJobDeps,
@@ -104,7 +90,6 @@ export async function executeCapture(
   return handleSuccess(monitor, attempt, deps, startedAt);
 }
 
-/** Build capture settings, decrypting headers and cookies just-in-time. */
 export async function buildCaptureSettings(
   monitor: Monitor,
   deps: Pick<CaptureJobDeps, 'db' | 'keyProvider' | 'capture' | 'logger'>,
@@ -118,8 +103,6 @@ export async function buildCaptureSettings(
     try {
       headers = decryptJson<Record<string, string>>(secrets.headersEnc, deps.keyProvider) ?? {};
     } catch (error) {
-      // A wrong PAGEFREEZE_SECRET_KEY must not silently capture an unauthenticated page
-      // and report a bogus change: fail loudly instead.
       deps.logger.error(
         { monitorId: monitor.id, error: (error as Error).message },
         'failed to decrypt monitor headers',
@@ -198,7 +181,6 @@ async function handleFailure(
 
   const decision = onFailure(
     {
-      // `incrementConsecutiveFailures` already applied the increment.
       consecutiveFailures: streak.consecutiveFailures - 1,
       failureNotified: streak.failureNotified,
     },
@@ -258,15 +240,6 @@ async function handleSuccess(
 
   const previous = await queries.getPreviousSuccessfulSnapshot(deps.db, monitor.id, capturedAt);
 
-  // ---------------------------------------------------------------------------
-  // Duplicate detection.
-  //
-  // When the rendered pixels are byte-identical to the previous capture there is no
-  // change to report and no reason to write another copy of a multi-megabyte PNG: the
-  // new snapshot references the existing artefacts and is marked `duplicate_of`.
-  // HTML and text are still written when *they* differ, because a page can change
-  // invisible markup without moving a single pixel.
-  // ---------------------------------------------------------------------------
   const screenshotDuplicate =
     previous !== null &&
     previous.screenshot_hash === screenshotHash &&
@@ -279,8 +252,6 @@ async function handleSuccess(
 
   const snapshotId = randomUUID();
 
-  // Artefacts are keyed by snapshot id so their location is stable. When a part is
-  // unchanged we reuse the previous key instead of writing a second copy.
   const finalScreenshotKey = screenshotDuplicate
     ? previous!.screenshot_key!
     : SCREENSHOT_KEY(monitor.id, snapshotId);
@@ -324,7 +295,6 @@ async function handleSuccess(
 
   await queries.touchMonitorSnapshot(deps.db, monitor.id, capturedAt);
 
-  // A successful capture ends any failure streak (and may trigger a recovery notice).
   const recovery = onSuccess(
     {
       consecutiveFailures: monitor.consecutiveFailures,
@@ -379,10 +349,6 @@ async function handleSuccess(
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Compare. Never create a Change from a failed snapshot: `previous` is by
-  // construction a successful one, and so is the current capture.
-  // ---------------------------------------------------------------------------
   const previousScreenshot = await deps.storage.get(previous.screenshot_key ?? '');
   const previousHtml = await deps.storage.get(previous.html_key ?? '');
   const previousText = await deps.storage.get(previous.text_key ?? '');
@@ -514,11 +480,6 @@ async function dispatch(
   }
 }
 
-/**
- * Turn a stored channel row into the delivery config, decrypting the webhook secret.
- * The plaintext secret exists only inside this function's return value and the delivery
- * call; it is never logged.
- */
 export async function resolveChannelConfig(
   channel: { config_enc: string | null; config: Record<string, unknown>; type: string },
   keyProvider: KeyProvider,

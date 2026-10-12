@@ -58,10 +58,6 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(derived, expected);
 }
 
-/**
- * Verifies a password against a hash and, on success, returns the hash so callers can
- * avoid re-deriving it on the next request.
- */
 export async function verifyAndRehash(
   password: string,
   stored: string,

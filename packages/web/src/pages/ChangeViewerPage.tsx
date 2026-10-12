@@ -27,13 +27,6 @@ import { HtmlDiff } from '../viewer/HtmlDiff.js';
 
 type Tab = 'visual' | 'text' | 'html';
 
-/**
- * The change viewer: the screen the whole product exists for.
- *
- * Three comparisons of the same pair of captures — pixels, visible text and normalised
- * markup — with previous/next navigation so a reviewer can walk a monitor's history
- * without going back to the timeline each time.
- */
 export function ChangeViewerPage() {
   const { monitorId = '', changeId = '' } = useParams<{ monitorId: string; changeId: string }>();
   const navigate = useNavigate();
@@ -436,8 +429,6 @@ function ShareMenu({ changeId }: { changeId: string }) {
             </button>
 
             {create.data?.url ? (
-              // The token is hashed at rest, so this is the only moment the full URL exists.
-              // Showing it beats a clipboard-only reveal: the operator can read it back.
               <div className="token-reveal" role="status">
                 <code>{create.data.url}</code>
                 <CopyButton value={create.data.url} label="Copy URL" />

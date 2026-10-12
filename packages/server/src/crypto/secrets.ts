@@ -30,9 +30,7 @@ export class SecretError extends Error {
     this.name = 'SecretError';
   }
 }
-
 export interface KeyProvider {
-  /** Exactly 32 bytes. */
   key(): Buffer;
 }
 

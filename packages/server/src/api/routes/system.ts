@@ -4,14 +4,6 @@ import type { AppDeps } from '../deps.js';
 import * as queries from '../../db/queries.js';
 import { requireAuthenticated } from '../auth.js';
 
-/**
- * Operational endpoints.
- *
- * `/healthz` is a liveness probe: it answers from the process alone, so a database outage
- * does not cause an orchestrator to restart a perfectly healthy container.
- * `/readyz` is a readiness probe: it verifies the dependencies the app cannot work
- * without, and is what a load balancer or `docker compose` healthcheck should use.
- */
 export async function registerSystemRoutes(app: AppInstance, deps: AppDeps): Promise<void> {
   app.get('/healthz', async () => {
     return {
@@ -38,7 +30,6 @@ export async function registerSystemRoutes(app: AppInstance, deps: AppDeps): Pro
 
     const storageStart = Date.now();
     try {
-      // A write plus a delete proves the data directory is usable, not merely present.
       const probeKey = `.readyz/${Date.now()}`;
       await deps.storage.put(probeKey, 'ok');
       await deps.storage.delete(probeKey);
@@ -51,8 +42,6 @@ export async function registerSystemRoutes(app: AppInstance, deps: AppDeps): Pro
       };
     }
 
-    // Only meaningful in modes that capture. An API-only process reports it as skipped
-    // rather than failing, otherwise readiness would depend on a browser it never uses.
     if (deps.browserPool) {
       const browserStart = Date.now();
       const ok = await deps.browserPool.healthCheck();
@@ -70,8 +59,6 @@ export async function registerSystemRoutes(app: AppInstance, deps: AppDeps): Pro
   });
 
   app.get('/metrics', async (_request, reply) => {
-    // Refresh the gauges that describe stored state on each scrape. They are cheap
-    // (three COUNTs) and scraping is infrequent relative to their cost.
     try {
       const stats = await queries.getStorageStats(deps.db);
       deps.metrics.snapshotsTotal.set(stats.snapshots);
@@ -94,7 +81,6 @@ export async function registerSystemRoutes(app: AppInstance, deps: AppDeps): Pro
     void reply.header('content-type', contentType).send(body);
   });
 
-  /** Read-only system information for the Settings screen. */
   app.get('/system/info', { preHandler: requireAuthenticated(deps.auth) }, async () => {
     const [database, stats] = await Promise.all([
       queries.getDatabaseInfo(deps.db).catch(() => ({ version: null, sizeBytes: null })),

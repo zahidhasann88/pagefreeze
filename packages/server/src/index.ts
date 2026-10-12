@@ -6,30 +6,13 @@ import { createContext, type AppContext } from './context.js';
 import { buildApp, findWebDist } from './api/app.js';
 import { runMigrations } from './scripts/migrate.js';
 
-/**
- * Process entrypoint.
- *
- * Modes (PAGEFREEZE_MODE):
- *   - `all`    API + scheduler + capture worker in one process (the default, and what
- *              docker compose runs)
- *   - `api`    HTTP only. No Chromium is launched and no schedules are registered, so an
- *              API replica stays small and can be scaled horizontally.
- *   - `worker` Scheduler + captures, no HTTP listener. Scale this out to add capture
- *              throughput; pg-boss singleton keys stop two workers running one monitor.
- */
-
 export interface StartOptions {
-  /** Run pending migrations before serving. On by default. */
   migrate?: boolean;
-  /** Skip launching Chromium. */
   disableBrowser?: boolean;
-  /** Skip pg-boss. */
   disableScheduler?: boolean;
-  /** Do not listen (build the app and return it). Used by tests. */
   noListen?: boolean;
   env?: Record<string, string | undefined>;
 }
-
 export interface StartedApp {
   context: AppContext;
   app: Awaited<ReturnType<typeof buildApp>>;
@@ -77,8 +60,6 @@ export async function start(options: StartOptions = {}): Promise<StartedApp> {
     logger.info('capture scheduler started');
   }
 
-  // Warm Chromium up front. Launching it lazily means the first capture after a restart
-  // pays the whole browser startup cost inside its own timeout.
   if (context.browserPool && config.mode !== 'api') {
     context.browserPool
       .getBrowser()
@@ -93,10 +74,8 @@ export async function start(options: StartOptions = {}): Promise<StartedApp> {
     closing = (async () => {
       logger.info('shutting down');
 
-      // 1. Stop accepting new HTTP work.
       await app.close().catch(() => undefined);
 
-      // 2. Give in-flight captures the grace period to finish, then tear everything down.
       const grace = config.shutdownGraceMs;
       await Promise.race([
         context.shutdown(),
@@ -121,7 +100,6 @@ async function main(): Promise<void> {
     app.context.logger.info({ signal }, 'received signal');
     void app.close().then(() => process.exit(0));
 
-    // If teardown wedges, exit anyway rather than hanging the orchestrator forever.
     const force = setTimeout(
       () => {
         console.error('forced exit after shutdown grace period');

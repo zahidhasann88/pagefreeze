@@ -1,16 +1,7 @@
 import type { Change, Monitor } from '@pagefreeze/shared';
 
-/**
- * The event payload sent to every notification channel.
- *
- * This is the *public* shape: it never contains monitor headers or cookies, and the
- * screenshot/diff references are relative URLs so a receiver cannot accidentally be
- * handed a credential.
- */
-
 export type NotificationEventType =
   'change.detected' | 'capture.failed' | 'capture.recovered' | 'channel.test';
-
 export interface ChangeNotificationPayload {
   changeId: string;
   pixelDiffPercent: number | null;
@@ -23,13 +14,11 @@ export interface ChangeNotificationPayload {
   htmlRemoved: number | null;
   createdAt: string;
 }
-
 export interface FailureNotificationPayload {
   consecutiveFailures: number;
   error: string | null;
   occurredAt: string;
 }
-
 export interface NotificationEvent {
   type: NotificationEventType;
   occurredAt: string;
@@ -144,7 +133,6 @@ export function buildTestEvent(message: string | null, occurredAt: Date): Notifi
   };
 }
 
-/** Plain-text rendering used for email bodies and Slack fallback text. */
 export function renderEventText(event: NotificationEvent): string {
   const lines: string[] = [];
   const title =

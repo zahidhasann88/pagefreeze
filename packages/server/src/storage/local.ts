@@ -12,12 +12,6 @@ import {
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import type { StorageObject, StorageProvider } from './types.js';
 
-/**
- * Local filesystem storage.
- *
- * Keys are joined onto a root directory and then re-checked to be inside it, so a key
- * containing `../` cannot escape the data directory.
- */
 export class LocalStorageProvider implements StorageProvider {
   readonly name = 'local';
   private readonly root: string;
@@ -58,7 +52,6 @@ export class LocalStorageProvider implements StorageProvider {
     return readFileSync(path);
   }
 
-  /** Streaming read for screenshots, which can be several megabytes. */
   createReadStream(key: string): ReadStream | null {
     const path = this.safePath(key);
     if (!existsSync(path)) return null;
@@ -127,7 +120,6 @@ export class LocalStorageProvider implements StorageProvider {
     // nothing to release
   }
 
-  /** Remove directories that became empty after a delete, up to the root. */
   private pruneEmptyDirs(startDir: string): void {
     let current = startDir;
     while (current.startsWith(this.root) && current !== this.root) {

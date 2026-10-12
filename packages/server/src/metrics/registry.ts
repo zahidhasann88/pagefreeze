@@ -1,11 +1,3 @@
-/**
- * Prometheus metrics.
- *
- * Hand-rolled rather than pulled from `prom-client`: the exposition format for counters,
- * gauges and histograms is small, and keeping it in-house avoids a dependency whose API
- * surface we barely use.
- */
-
 export interface MetricSample {
   name: string;
   help: string;
@@ -206,7 +198,6 @@ export class MetricsRegistry {
       .join('\n');
   }
 
-  /** Text for the /metrics endpoint, with the Prometheus content type. */
   expose(): { body: string; contentType: string } {
     return { body: `${this.render()}\n`, contentType: 'text/plain; version=0.0.4; charset=utf-8' };
   }

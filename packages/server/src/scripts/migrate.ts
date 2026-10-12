@@ -5,14 +5,6 @@ import { runner } from 'node-pg-migrate';
 import type { RunnerOption } from 'node-pg-migrate';
 import { loadConfig } from '../config.js';
 
-/**
- * Run the SQL migrations in `packages/server/migrations`.
- *
- * node-pg-migrate is used only as a runner: the migrations themselves are plain `.sql`
- * files with `-- Up Migration` / `-- Down Migration` sections, so they can be read,
- * reviewed and applied by hand with `psql -f` without any tooling.
- */
-
 function findMigrationsDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
@@ -28,7 +20,6 @@ function findMigrationsDir(): string {
     `migrations directory not found; looked in:\n${candidates.map((c) => `  - ${c}`).join('\n')}`,
   );
 }
-
 export interface MigrateOptions {
   direction?: 'up' | 'down';
   count?: number;

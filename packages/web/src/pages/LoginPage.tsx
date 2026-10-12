@@ -13,7 +13,6 @@ export function LoginPage() {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
 
-  // Already authenticated: go where the user was heading.
   if (!meLoading && me) {
     const from = (location.state as { from?: string } | null)?.from ?? '/';
     return <Navigate to={from} replace />;

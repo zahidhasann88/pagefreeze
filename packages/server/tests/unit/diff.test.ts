@@ -25,7 +25,7 @@ describe('visualDiff', () => {
     expect(result.diffPercent).toBe(0);
     expect(result.sizeChanged).toBe(false);
     expect(result.regions).toEqual([]);
-    // No changed pixels means there is nothing to highlight, so no image is produced.
+
     expect(result.diffImage).toBeNull();
     expect(result.width).toBe(64);
     expect(result.height).toBe(48);
@@ -44,7 +44,7 @@ describe('visualDiff', () => {
     expect(result.regions).toHaveLength(1);
 
     const region = result.regions[0]!;
-    // The region must contain the changed block, allowing for the merge padding.
+
     expect(region.x).toBeLessThanOrEqual(10);
     expect(region.y).toBeLessThanOrEqual(10);
     expect(region.x + region.width).toBeGreaterThanOrEqual(30);
@@ -70,8 +70,7 @@ describe('visualDiff', () => {
     expect(result.sizeTo).toEqual({ width: 80, height: 120 });
     expect(result.width).toBe(80);
     expect(result.height).toBe(120);
-    // The 60 rows of padding are white on both canvases, so only the extra rows differ
-    // against... nothing. Both are white, so the diff is zero even though the size changed.
+
     expect(result.changedPixels).toBe(0);
   });
 
@@ -84,7 +83,7 @@ describe('visualDiff', () => {
     expect(result.sizeChanged).toBe(true);
     expect(result.width).toBe(60);
     expect(result.height).toBe(80);
-    // The whole new 60x40 region differs from the white padding.
+
     expect(result.changedPixels).toBe(2400);
     expect(result.diffPercent).toBeCloseTo(50, 5);
   });
@@ -115,7 +114,6 @@ describe('visualDiff', () => {
     const before = solidPng(10, 10, { r: 200, g: 200, b: 200 });
     const after = solidPng(10, 10, { r: 205, g: 200, b: 200 });
 
-    // A tight threshold notices a 5/255 shift; a loose one does not.
     expect(visualDiff(before, after, { threshold: 0.01 }).changedPixels).toBe(100);
     expect(visualDiff(before, after, { threshold: 0.5 }).changedPixels).toBe(0);
   });
@@ -142,13 +140,12 @@ describe('visualDiff', () => {
   it('marks changed pixels with a colour that is not greyscale', () => {
     const result = visualDiff(solidPng(4, 4, WHITE), solidPng(4, 4, BLACK));
     const diff = decodePng(result.diffImage!);
-    // pixelmatch writes a red-ish diff colour: r !== g.
+
     expect(diff.data[0]).not.toBe(diff.data[1]);
   });
 });
 
 describe('clusterRegions', () => {
-  /** Build a mask from a list of rectangles. */
   function maskFrom(
     width: number,
     height: number,

@@ -20,11 +20,6 @@ import type {
   SystemInfo,
 } from './types.js';
 
-/**
- * Query keys are centralised so invalidation cannot drift from the fetches.
- * `monitors.list` is deliberately coarse: after any mutation the dashboard refetches,
- * which is cheap for the row counts involved and avoids stale cards.
- */
 export const keys = {
   me: ['me'] as const,
   monitors: (params?: unknown) => ['monitors', 'list', params ?? {}] as const,
@@ -48,7 +43,6 @@ export function useMe(enabled = true) {
     staleTime: 60_000,
   });
 }
-
 export interface MonitorListParams {
   status?: 'ok' | 'changed' | 'failing' | 'paused' | 'all';
   tag?: string;
@@ -73,14 +67,6 @@ export function useMonitor(id: string | undefined, options: PollOptions = {}) {
     ...(options.refetchIntervalMs ? { refetchInterval: options.refetchIntervalMs } : {}),
   });
 }
-
-/**
- * Polling option shared by the history queries.
- *
- * `POST /monitors/:id/capture` answers 202 as soon as the job is queued and the capture
- * happens afterwards, so invalidating once on success is not enough - the new snapshot does
- * not exist yet. While a capture is outstanding the timeline polls instead.
- */
 export interface PollOptions {
   refetchIntervalMs?: number | false;
 }
@@ -154,8 +140,6 @@ export function useSystemInfo() {
     staleTime: 15_000,
   });
 }
-
-/* ---------------------------------------------------------------- mutations */
 
 function useInvalidator() {
   const client = useQueryClient();

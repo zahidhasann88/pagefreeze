@@ -1,13 +1,3 @@
-# Pagefreeze + PostgreSQL.
-#
-#   docker compose up -d          start everything
-#   docker compose logs -f pagefreeze
-#   docker compose down           stop (data volumes are kept)
-#
-# First run: copy .env.example to .env and fill in the three required values
-# (PAGEFREEZE_ADMIN_PASSWORD, PAGEFREEZE_SECRET_KEY, and the compose-level
-# POSTGRES_PASSWORD). Everything else has a sane default.
-
 name: pagefreeze
 
 services:

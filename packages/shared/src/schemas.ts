@@ -12,10 +12,6 @@ import {
 } from './constants.js';
 import { cronMinGapMinutes, describeCron, isValidCron } from './cron.js';
 
-/* -------------------------------------------------------------------------- */
-/* Primitives                                                                 */
-/* -------------------------------------------------------------------------- */
-
 /**
  * Absolute http(s) URL. Anything else is rejected up front; the SSRF guard in the
  * capture engine performs the real (per-request, DNS-level) check later.
@@ -59,38 +55,23 @@ export const cssSelectorSchema = z
 
 export const tagSchema = z.string().trim().min(1).max(LIMITS.tagMax);
 
-/* -------------------------------------------------------------------------- */
-/* Pagination                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(LIMITS.pageSizeMax).default(LIMITS.pageSizeDefault),
   cursor: z.string().trim().min(1).max(512).optional(),
 });
 
 export type PaginationInput = z.input<typeof paginationSchema>;
-
 export interface Page<T> {
   data: T[];
   nextCursor: string | null;
   hasMore: boolean;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Schedule                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export const scheduleKindSchema = z.enum(['preset', 'cron']);
-
 export interface ScheduleValidationOptions {
-  /** Minimum number of minutes allowed between two runs (0 disables the check). */
   minIntervalMinutes?: number;
 }
 
-/**
- * Validate the `scheduleKind` / `scheduleValue` pair and, when a minimum interval is
- * configured, reject schedules that would fire more often than allowed.
- */
 export function validateSchedule(
   scheduleKind: 'preset' | 'cron',
   scheduleValue: string,
@@ -110,7 +91,7 @@ export function validateSchedule(
   const minIntervalMinutes = options.minIntervalMinutes ?? 0;
   if (minIntervalMinutes > 0) {
     const gap = cronMinGapMinutes(scheduleValue);
-    // `null` means "could not determine" (very sparse expression) - allow it.
+
     if (gap !== null && gap < minIntervalMinutes) {
       return {
         ok: false,
@@ -143,10 +124,6 @@ export function presetToCron(preset: string): string {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Monitors                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export const cookieInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
   value: z.string().max(LIMITS.cookieValueMax),
@@ -174,14 +151,6 @@ export const headersSchema = z
 
 export type HeadersInput = z.input<typeof headersSchema>;
 
-/**
- * Field schemas shared by the create and update variants.
- *
- * The two variants are written out explicitly rather than generated from one shape:
- * `create` applies defaults so a partial POST is complete, while `update` makes every
- * field optional so a PATCH only touches what was sent. Generating both from a single
- * object would make TypeScript infer a union, which then leaks into every consumer.
- */
 const monitorFields = {
   name: z.string().trim().min(1).max(LIMITS.nameMax),
   url: httpUrlSchema,
@@ -208,9 +177,6 @@ const monitorFields = {
   channelIds: z.array(uuidSchema).max(50),
 };
 
-/**
- * `waitStrategy: "selector"` is meaningless without a selector to wait for.
- */
 function refineWaitSelector(
   value: { waitStrategy?: string; waitSelector?: string | null },
   ctx: z.RefinementCtx,
@@ -226,12 +192,6 @@ function refineWaitSelector(
   }
 }
 
-/**
- * Validate the `scheduleKind` / `scheduleValue` pair and enforce the minimum interval.
- *
- * The pair must be supplied together: accepting one half on its own would let a stored
- * monitor end up with a `cron` kind and a `24h` preset value.
- */
 function refineSchedule(minIntervalMinutes: number) {
   return (
     value: { scheduleKind?: 'preset' | 'cron'; scheduleValue?: string },
@@ -258,10 +218,6 @@ function refineSchedule(minIntervalMinutes: number) {
   };
 }
 
-/**
- * Schema factory: the minimum allowed interval comes from server configuration, so it is
- * injected rather than hard-coded.
- */
 export function monitorCreateSchema(minIntervalMinutes = 0) {
   return z
     .object({
@@ -324,11 +280,6 @@ export function monitorUpdateSchema(minIntervalMinutes = 0) {
     .superRefine(refineSchedule(minIntervalMinutes));
 }
 
-/**
- * The defaults a new monitor starts with, expressed as a plain object so the web UI can
- * pre-fill its form without a round trip. Kept in one place so it cannot drift from the
- * schema defaults above.
- */
 export const monitorDefaults: z.output<ReturnType<typeof monitorCreateSchema>> =
   monitorCreateSchema(0).parse({ name: 'New monitor', url: 'https://example.com' });
 
@@ -343,10 +294,6 @@ export const monitorListQuerySchema = paginationSchema.extend({
 export type MonitorListQuery = z.output<typeof monitorListQuerySchema>;
 export type MonitorCreateInput = z.input<ReturnType<typeof monitorCreateSchema>>;
 export type MonitorUpdateInput = z.input<ReturnType<typeof monitorUpdateSchema>>;
-
-/* -------------------------------------------------------------------------- */
-/* Notification channels                                                      */
-/* -------------------------------------------------------------------------- */
 
 const webhookConfigSchema = z.object({
   url: httpUrlSchema,
@@ -403,10 +350,6 @@ export const channelTestSchema = z.object({
 export type ChannelCreateInput = z.input<typeof channelCreateSchema>;
 export type ChannelUpdateInput = z.input<typeof channelUpdateSchema>;
 
-/* -------------------------------------------------------------------------- */
-/* Auth, tokens, shares                                                       */
-/* -------------------------------------------------------------------------- */
-
 export const loginSchema = z.object({
   username: z.string().trim().min(1).max(200),
   password: z.string().min(1).max(512),
@@ -420,10 +363,6 @@ export const apiTokenCreateSchema = z.object({
 export const shareCreateSchema = z.object({
   expiresInHours: z.number().int().min(1).max(8760).nullable().default(null),
 });
-
-/* -------------------------------------------------------------------------- */
-/* Snapshots, changes, compare                                                */
-/* -------------------------------------------------------------------------- */
 
 export const snapshotListQuerySchema = paginationSchema.extend({
   status: z.enum(['success', 'failed', 'all']).default('all'),
@@ -440,10 +379,6 @@ export const compareQuerySchema = z.object({
 });
 
 export type CompareQuery = z.output<typeof compareQuerySchema>;
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export function describeSchedule(scheduleKind: 'preset' | 'cron', scheduleValue: string): string {
   if (scheduleKind === 'preset') {

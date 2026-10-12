@@ -1,12 +1,3 @@
-/**
- * A minimal YAML emitter.
- *
- * OpenAPI documents are nested maps, arrays and scalars, which is all this needs to
- * handle. Writing it here avoids adding a YAML dependency to the runtime for a build-time
- * script, and it produces stable, diff-friendly output (keys in insertion order, two-space
- * indent, double-quoted strings only where required).
- */
-
 const PLAIN_SAFE = /^[A-Za-z_][A-Za-z0-9_./-]*$/;
 
 function needsQuotes(value: string): boolean {
@@ -21,7 +12,7 @@ function formatScalar(value: unknown): string {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
   const text = String(value);
   if (!needsQuotes(text)) return text;
-  // JSON string escaping is a valid subset of YAML double-quoted style.
+
   return JSON.stringify(text);
 }
 

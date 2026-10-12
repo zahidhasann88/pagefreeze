@@ -1,26 +1,11 @@
 import type { DiffRegion } from '@pagefreeze/shared';
-
-/**
- * Cluster changed pixels into rectangles.
- *
- * The mask is first bucketed into a coarse grid, then dilated by one cell and labelled
- * with connected components. Working on the grid instead of the raw bitmap keeps the
- * cost proportional to the number of *changed* pixels rather than the image area, which
- * matters for full-page screenshots that can be tens of thousands of pixels tall.
- */
-
 export interface RegionOptions {
-  /** Merge changed pixels that are at most this many pixels apart. */
   padding?: number;
-  /** Drop clusters whose changed-pixel area is below this. */
   minArea?: number;
-  /** Maximum number of regions to return (largest first). */
   maxRegions?: number;
 }
-
 export interface ClusterResult {
   regions: DiffRegion[];
-  /** Total number of changed pixels found in the mask. */
   totalChanged: number;
 }
 
@@ -59,7 +44,6 @@ export function clusterRegions(
     }
   }
 
-  // Dilate by one grid cell so that nearby changes merge into one region.
   const labels = new Int32Array(gridWidth * gridHeight).fill(0);
   const stack: number[] = [];
   const components: Array<{
@@ -106,7 +90,6 @@ export function clusterRegions(
             const nIndex = ny * gridWidth + nx;
             if (labels[nIndex] !== 0) continue;
             if (!filled[nIndex]) {
-              // Dilated neighbourhood cell: mark it visited but do not expand from it.
               labels[nIndex] = label;
               if (nx < minX) minX = nx;
               if (nx > maxX) maxX = nx;
@@ -148,7 +131,6 @@ export function clusterRegions(
   return { regions: trimmed, totalChanged };
 }
 
-/** Render clusters as SVG rectangles - useful for tests and debugging. */
 export function regionsToSvg(regions: DiffRegion[], width: number, height: number): string {
   const body = regions
     .map(

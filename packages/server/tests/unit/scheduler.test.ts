@@ -10,10 +10,6 @@ import {
 import { MetricsRegistry } from '../../src/metrics/registry.js';
 import type { Database } from '../../src/db/pool.js';
 
-/**
- * A JobQueue double that records everything done to it, so scheduling behaviour can be
- * asserted without a database or pg-boss.
- */
 class FakeQueue implements JobQueue {
   readonly schedules = new Map<string, { cron: string; data: object; options: object }>();
   readonly queues = new Map<string, { policy?: string }>();
@@ -71,7 +67,6 @@ class FakeQueue implements JobQueue {
     return this.queueSizes.get(name) ?? 0;
   }
 
-  /** Drive a queue's worker as pg-boss would. */
   async dispatch(name: string, data: unknown): Promise<void> {
     const handler = this.workers.get(name);
     if (!handler) throw new Error(`no worker registered for ${name}`);
@@ -79,7 +74,6 @@ class FakeQueue implements JobQueue {
   }
 }
 
-/** A Database double exposing just the one query the scheduler makes. */
 function fakeDb(
   monitors: Array<{ id: string; enabled: boolean; paused: boolean; schedule_cron: string }>,
 ): Database {
@@ -156,7 +150,6 @@ describe('Scheduler.start', () => {
     expect(queue.workers.has(RETENTION_QUEUE)).toBe(true);
     expect(queue.schedules.has(RETENTION_QUEUE)).toBe(true);
 
-    // One queue and one schedule per enabled monitor.
     expect(queue.schedules.has(captureQueueName('m1'))).toBe(true);
     expect(queue.schedules.get(captureQueueName('m1'))?.cron).toBe('*/15 * * * *');
     expect(queue.workers.has(captureQueueName('m1'))).toBe(true);
@@ -169,7 +162,7 @@ describe('Scheduler.start', () => {
     const { scheduler } = makeScheduler(queue, []);
     await scheduler.start();
     await scheduler.start();
-    expect(queue.workers.size).toBe(1); // retention only
+    expect(queue.workers.size).toBe(1);
     await scheduler.stop();
   });
 
@@ -226,7 +219,6 @@ describe('Scheduler.sync', () => {
     await before.scheduler.sync();
     expect(queue.schedules.get(captureQueueName('m1'))?.cron).toBe('0 * * * *');
 
-    // Same queue, new database contents: the monitor's schedule was edited.
     const after = makeScheduler(queue, [
       { id: 'm1', enabled: true, paused: false, schedule_cron: '*/30 * * * *' },
     ]);
@@ -234,7 +226,7 @@ describe('Scheduler.sync', () => {
 
     expect(result.updated).toBe(1);
     expect(queue.schedules.get(captureQueueName('m1'))?.cron).toBe('*/30 * * * *');
-    // The worker is registered once and reused, not duplicated.
+
     expect(queue.workers.has(captureQueueName('m1'))).toBe(true);
   });
 
@@ -347,7 +339,6 @@ describe('Scheduler job dispatch', () => {
     await queue.dispatch(RETENTION_QUEUE, {});
     expect(retentionRuns).toHaveLength(1);
 
-    // A failing retention run must not take the worker down.
     const failing = new Scheduler({
       db: fakeDb([]),
       queue,
@@ -357,7 +348,7 @@ describe('Scheduler job dispatch', () => {
         throw new Error('retention exploded');
       },
     });
-    // start() resolves void; what matters is that the failing run does not throw.
+
     await failing.start();
     await queue.dispatch(RETENTION_QUEUE, {});
   });
@@ -390,12 +381,11 @@ describe('Scheduler.enqueueCapture', () => {
     ]);
     await scheduler.sync();
 
-    // No schedule exists for a paused monitor...
     expect(queue.schedules.has(captureQueueName('m1'))).toBe(false);
 
     const jobId = await scheduler.enqueueCapture('m1');
     expect(jobId).not.toBeNull();
-    // ...but a worker was created on demand so the job can actually run.
+
     expect(queue.workers.has(captureQueueName('m1'))).toBe(true);
     await queue.dispatch(captureQueueName('m1'), { monitorId: 'm1', manual: true });
   });
@@ -448,7 +438,7 @@ describe('Scheduler.stop', () => {
 
     expect(queue.stopped).toBe(true);
     await scheduler.sync();
-    expect(queue.workers.size).toBe(1); // retention only, nothing new
+    expect(queue.workers.size).toBe(1);
   });
 });
 
@@ -487,7 +477,7 @@ describe('MetricsRegistry', () => {
 
     const body = metrics.expose().body;
     expect(body).toContain('# TYPE pagefreeze_capture_duration_seconds histogram');
-    // Buckets are cumulative: both 0.5s and 3s fall in the <=5 bucket.
+
     expect(body).toContain('pagefreeze_capture_duration_seconds_bucket{status="success",le="5"} 2');
     expect(body).toContain(
       'pagefreeze_capture_duration_seconds_bucket{status="success",le="+Inf"} 2',

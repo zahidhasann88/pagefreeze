@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import type { Mailer } from './notifier.js';
-
 export interface SmtpOptions {
   host: string;
   port: number;
@@ -11,10 +10,6 @@ export interface SmtpOptions {
   from: string;
 }
 
-/**
- * nodemailer-backed mailer. Returns null when SMTP is not configured, in which case
- * email channels fail with a clear message instead of throwing at startup.
- */
 export function createMailer(options: SmtpOptions): Mailer | null {
   if (!options.host) return null;
 
@@ -34,7 +29,6 @@ export function createMailer(options: SmtpOptions): Mailer | null {
   };
 }
 
-/** A mailer that records messages instead of sending them. Used by tests. */
 export class RecordingMailer implements Mailer {
   readonly sent: Array<{ to: string[]; subject: string; text: string }> = [];
 

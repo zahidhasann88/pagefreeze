@@ -1,16 +1,6 @@
 import { FixtureServer } from '../fixtures/fixtureServer.js';
 import { start, type StartedApp } from '../index.js';
 
-/**
- * Boots a deterministic stack for the Playwright end-to-end test:
- *
- *   - the fixture website on a fixed port, mutating on demand rather than on a timer
- *   - the Pagefreeze API + UI on a fixed port, with the fixture host allowlisted
- *
- * Both ports are fixed so the Playwright config can point at them without parsing output.
- * The script prints `E2E_READY` once /readyz passes, which is what the config waits for.
- */
-
 const FIXTURE_PORT = Number.parseInt(process.env['E2E_FIXTURE_PORT'] ?? '8091', 10);
 const APP_PORT = Number.parseInt(process.env['E2E_PORT'] ?? '8092', 10);
 const DATABASE_URL =

@@ -7,14 +7,6 @@ import { requireAuthenticated } from '../auth.js';
 import * as queries from '../../db/queries.js';
 import { RAW_CONTENT_CSP } from '../security.js';
 
-/**
- * Snapshot artefact endpoints.
- *
- * Security note: stored HTML and text are captured from third-party pages and may contain
- * anything, including markup that would be dangerous if executed. They are therefore
- * served as `text/plain` with `nosniff` and a `default-src 'none'; sandbox` CSP, and the
- * UI renders them as escaped text. They are never served as `text/html` from this origin.
- */
 export async function registerSnapshotRoutes(app: AppInstance, deps: AppDeps): Promise<void> {
   app.get('/snapshots/:id', { preHandler: requireAuthenticated(deps.auth) }, async (request) => {
     const { id } = request.params as { id: string };
@@ -37,8 +29,6 @@ export async function registerSnapshotRoutes(app: AppInstance, deps: AppDeps): P
       const data = await deps.storage.get(key);
       if (!data) throw notFound('Screenshot file is missing from storage');
 
-      // Screenshots are immutable once written, so they can be cached hard. The UI shows
-      // hundreds of thumbnails and re-fetching them on every navigation would be wasteful.
       void reply
         .header('content-type', 'image/png')
         .header('cache-control', 'private, max-age=31536000, immutable')
@@ -87,7 +77,6 @@ export async function registerSnapshotRoutes(app: AppInstance, deps: AppDeps): P
   );
 }
 
-/** Shared helper for streaming a stored PNG (also used by the change diff endpoint). */
 export function sendPng(reply: FastifyReply, data: Buffer, cacheable = true): void {
   void reply
     .header('content-type', 'image/png')

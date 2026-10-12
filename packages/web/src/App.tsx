@@ -13,12 +13,6 @@ import { ComparePage } from './pages/ComparePage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { SharePage } from './pages/SharePage.js';
 
-/**
- * TanStack Query client.
- *
- * Retries are limited to one and never applied to 4xx responses: a validation error or a
- * 404 will not become correct on its own, and retrying it only makes the UI feel slow.
- */
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -34,7 +28,6 @@ const queryClient = new QueryClient({
   },
 });
 
-/** Gate that keeps unauthenticated users out of every page except /login and /share. */
 function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { data: me, isLoading, isError } = useMe();

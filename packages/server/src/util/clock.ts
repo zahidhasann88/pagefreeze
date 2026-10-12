@@ -1,7 +1,3 @@
-/**
- * Clock is injectable so retry/backoff and retention logic can be tested with a fake
- * time source instead of sleeping for real.
- */
 export interface Clock {
   now(): Date;
   /** Milliseconds since the epoch. */
@@ -15,10 +11,6 @@ export const systemClock: Clock = {
   sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 };
 
-/**
- * A manually advanced clock. `sleep()` resolves immediately but records the request so
- * tests can assert on backoff without waiting.
- */
 export class FakeClock implements Clock {
   private current: number;
   readonly sleeps: number[] = [];

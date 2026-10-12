@@ -104,20 +104,19 @@ describe('cronMatches / nextRunAfter', () => {
 
   it('applies the Vixie day rule when both dom and dow are restricted', () => {
     const expr = parseCron('0 0 1 * 1');
-    // 2026-05-02 is a Saturday: the next Monday (2026-05-04) comes before the first
-    // of the next month, which is what the OR rule should produce.
+
     expect(nextRunAfter(expr, new Date('2026-05-02T00:00:00Z'))?.toISOString()).toBe(
       '2026-05-04T00:00:00.000Z',
     );
     // 2026-06-30 is a Tuesday: the first of July (2026-07-01) comes before the next
-    // Monday (2026-07-06), so the day-of-month branch wins.
+
     expect(nextRunAfter(expr, new Date('2026-06-30T00:00:00Z'))?.toISOString()).toBe(
       '2026-07-01T00:00:00.000Z',
     );
   });
 
   it('returns null for an expression that never matches', () => {
-    const expr = parseCron('0 0 30 2 *'); // 30th of February
+    const expr = parseCron('0 0 30 2 *');
     expect(nextRunAfter(expr, new Date('2026-01-01T00:00:00Z'))).toBeNull();
   });
 

@@ -1,7 +1,6 @@
 import type { DiffRegion, SizeInfo } from '@pagefreeze/shared';
 import type { HtmlDiffResult } from './html.js';
 import type { TextDiffResult } from './text.js';
-
 export interface DiffRequest {
   beforeScreenshot: Buffer | null;
   afterScreenshot: Buffer | null;
@@ -11,15 +10,10 @@ export interface DiffRequest {
   afterHtml: string | null;
   options: DiffEngineOptions;
 }
-
 export interface DiffEngineOptions {
-  /** Per-pixel colour distance threshold for pixelmatch (0-1). */
   pixelThreshold: number;
-  /** Count anti-aliased pixels as changes. */
   includeAA: boolean;
-  /** Grid cell size / merge distance for region clustering, in pixels. */
   regionPadding: number;
-  /** Drop clusters smaller than this many changed pixels. */
   regionMinArea: number;
   computeText: boolean;
   computeHtml: boolean;
@@ -37,7 +31,6 @@ export const DEFAULT_DIFF_OPTIONS: DiffEngineOptions = {
   computeVisual: true,
   produceDiffImage: true,
 };
-
 export interface DiffResult {
   pixelDiffPercent: number | null;
   changedPixels: number | null;
@@ -52,14 +45,6 @@ export interface DiffResult {
   durationMs: number;
 }
 
-/**
- * Significance rule: a change is significant when the pixel difference meets or exceeds
- * the monitor's threshold, OR when text/HTML detection is on and content changed.
- *
- * The visual threshold alone is not enough: a page can swap a price from "9" to "19"
- * and move under 0.5% of the pixels. When a monitor opts into text or HTML detection,
- * a content change on its own is always significant.
- */
 export function isSignificant(
   result: Pick<DiffResult, 'pixelDiffPercent' | 'text' | 'html'>,
   changeThresholdPercent: number,
@@ -74,13 +59,11 @@ export function isSignificant(
 
   return false;
 }
-
 export interface ChangeSummaryOptions {
   significant: boolean;
   sizeChanged: boolean;
 }
 
-/** A one-line human description used in lists, notifications and share links. */
 export function summarizeChange(
   result: Pick<DiffResult, 'pixelDiffPercent' | 'text' | 'html' | 'sizeChanged'>,
   options: ChangeSummaryOptions,

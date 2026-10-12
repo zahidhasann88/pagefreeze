@@ -15,7 +15,6 @@ import { requireAuthenticated } from '../auth.js';
 import * as queries from '../../db/queries.js';
 import { encryptJson } from '../../crypto/secrets.js';
 import { HTML_KEY, SCREENSHOT_KEY, TEXT_KEY } from '../../storage/types.js';
-
 interface MonitorBody {
   url?: string;
   headers?: HeadersInput;
@@ -24,12 +23,6 @@ interface MonitorBody {
   [key: string]: unknown;
 }
 
-/**
- * Split a monitor payload into the columns stored in the clear and the parts that must be
- * encrypted. Header and cookie *values* never reach the database unencrypted, and never
- * appear in a response: only the names are stored alongside the ciphertext so the UI can
- * say which headers are configured.
- */
 function splitSecrets(
   deps: AppDeps,
   body: MonitorBody,
@@ -60,7 +53,6 @@ function splitSecrets(
   return result;
 }
 
-/** Drop the secret-bearing and relational fields before the payload reaches the queries layer. */
 function withoutSecrets<T extends MonitorBody>(
   body: T,
 ): Omit<T, 'headers' | 'cookies' | 'channelIds'> {
@@ -68,10 +60,6 @@ function withoutSecrets<T extends MonitorBody>(
   return rest;
 }
 
-/**
- * Reject a URL the SSRF guard would refuse at capture time, so an operator gets an
- * immediate, explainable error instead of a monitor that fails on every run.
- */
 async function assertUrlAllowed(deps: AppDeps, url: string): Promise<void> {
   const verdict = await deps.guard.checkUrl(url);
   if (!verdict.allowed) {
@@ -119,12 +107,6 @@ export async function registerMonitorRoutes(app: AppInstance, deps: AppDeps): Pr
     sendCreated(reply, created);
   });
 
-  /**
-   * Preview a capture without persisting anything, so an operator can see the effect of a
-   * selector or wait strategy before committing to a schedule.
-   *
-   * Registered before `/monitors/:id` so that "preview" is not parsed as an id.
-   */
   app.post(
     '/monitors/preview',
     { preHandler: requireAuthenticated(deps.auth) },
@@ -189,8 +171,6 @@ export async function registerMonitorRoutes(app: AppInstance, deps: AppDeps): Pr
       const { id } = request.params as { id: string };
       const monitorId = parseUuid(id);
 
-      // Delete artefacts first: a failure here leaves files that the orphan sweep can
-      // collect later, whereas the reverse would leave rows pointing at nothing.
       const snapshots = await queries.listSnapshots(deps.db, monitorId, {
         status: 'all',
         limit: 1000,
@@ -227,8 +207,6 @@ export async function registerMonitorRoutes(app: AppInstance, deps: AppDeps): Pr
 
       const jobId = await deps.scheduler?.enqueueCapture(monitorId, true);
 
-      // Without a scheduler (API-only process, or a test) the capture runs inline. The
-      // response is still 202 with the same shape so clients have one code path.
       void reply.status(202).send({
         mode: deps.scheduler ? 'queued' : 'inline',
         jobId: jobId ?? null,

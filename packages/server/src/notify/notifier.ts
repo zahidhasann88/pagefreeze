@@ -2,14 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { SsrfGuard } from '../capture/ssrf.js';
 import { buildSignedHeaders, SIGNATURE_HEADER } from './signing.js';
 import { renderEventText, type NotificationEvent } from './events.js';
-
-/**
- * Channel configuration as stored (decrypted).
- *
- * `secret` is the webhook HMAC key. It is only ever present inside this object, in
- * memory, for the duration of a delivery; it is never logged and never returned by the
- * API.
- */
 export interface ResolvedChannelConfig {
   type: 'webhook' | 'slack' | 'email';
   url?: string;
@@ -17,15 +9,12 @@ export interface ResolvedChannelConfig {
   to?: string[];
   subject?: string;
 }
-
 export interface DeliveryResult {
   ok: boolean;
   status?: number;
   error?: string;
   durationMs: number;
 }
-
-/** Injectable HTTP client so tests never touch the network. */
 export interface HttpClient {
   post(options: {
     url: string;
@@ -36,12 +25,9 @@ export interface HttpClient {
     maxRedirects?: number;
   }): Promise<{ status: number; body: string }>;
 }
-
-/** Injectable mailer so tests never touch SMTP. */
 export interface Mailer {
   send(options: { to: string[]; subject: string; text: string }): Promise<void>;
 }
-
 export interface NotifierOptions {
   guard: SsrfGuard;
   http: HttpClient;
@@ -55,11 +41,6 @@ export interface NotifierOptions {
     debug: (obj: unknown, msg?: string) => void;
   };
 }
-
-/**
- * Notifier is the seam the rest of the app depends on. Everything that wants to tell a
- * human about a change goes through `deliver()`.
- */
 export interface Notifier {
   deliver(
     channel: { id: string; name: string },
@@ -68,7 +49,6 @@ export interface Notifier {
   ): Promise<DeliveryResult>;
 }
 
-/** Build the Slack "incoming webhook" body: `{ text }` plus a Block Kit attachment. */
 export function buildSlackPayload(event: NotificationEvent): string {
   const text = renderEventText(event);
 
@@ -122,7 +102,6 @@ export function buildSlackPayload(event: NotificationEvent): string {
   });
 }
 
-/** Generic JSON webhook body: the event itself plus a schema version. */
 export function buildWebhookPayload(event: NotificationEvent): string {
   return JSON.stringify({ schema: 'pagefreeze/v1', event });
 }
@@ -203,8 +182,7 @@ export class NotificationService implements Notifier {
     }
 
     // Outbound webhooks go through the same SSRF guard as captures: a channel URL is
-    // operator-controlled input that would otherwise be a convenient way to reach the
-    // metadata service.
+
     const verdict = await this.options.guard.checkUrl(url);
     if (!verdict.allowed) {
       return {
@@ -217,8 +195,6 @@ export class NotificationService implements Notifier {
     const body = kind === 'slack' ? buildSlackPayload(event) : buildWebhookPayload(event);
     const deliveryId = randomUUID();
 
-    // Slack-compatible endpoints do not verify our signature, but signing them is
-    // harmless and keeps one code path.
     const headers = buildSignedHeaders({
       secret: config.secret ?? null,
       timestamp: Math.floor(Date.now() / 1000),
@@ -257,7 +233,6 @@ export class NotificationService implements Notifier {
   }
 }
 
-/** A Notifier that records deliveries instead of performing them. Used by tests. */
 export class RecordingNotifier implements Notifier {
   readonly deliveries: Array<{
     channelId: string;

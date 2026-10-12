@@ -1,9 +1,4 @@
 import { chromium, type Browser, type BrowserContext, type LaunchOptions } from 'playwright';
-
-/**
- * BrowserLauncher is the seam tests use to inject a fake browser. The real
- * implementation wraps Playwright's Chromium.
- */
 export interface BrowserLauncher {
   launch(): Promise<Browser>;
 }
@@ -13,9 +8,7 @@ export const playwrightLauncher: BrowserLauncher = {
     return chromium.launch(options ?? {});
   },
 } as unknown as BrowserLauncher;
-
 export interface BrowserPoolOptions {
-  /** How many captures may run at once. Chromium is heavy; the default is deliberately low. */
   concurrency: number;
   launchOptions?: LaunchOptions;
   launcher?: BrowserLauncher;
@@ -24,19 +17,11 @@ export interface BrowserPoolOptions {
     warn: (obj: unknown, msg?: string) => void;
   };
 }
-
 interface QueueEntry {
   resolve: () => void;
   reject: (error: Error) => void;
 }
 
-/**
- * One shared Chromium instance plus a semaphore that caps concurrent captures.
- *
- * Each capture gets a fresh, isolated `BrowserContext` (incognito-equivalent), so no
- * cookies, storage or cache are shared between monitors. Contexts are closed and
- * discarded after every capture.
- */
 export class BrowserPool {
   private browser: Browser | null = null;
   private launching: Promise<Browser> | null = null;
@@ -114,10 +99,6 @@ export class BrowserPool {
     }
   }
 
-  /**
-   * Run `task` with an isolated browser context, honouring the concurrency cap.
-   * The context is always closed, even when the task throws.
-   */
   async withContext<T>(
     task: (context: BrowserContext) => Promise<T>,
     contextOptions: Parameters<Browser['newContext']>[0] = {},
@@ -136,7 +117,6 @@ export class BrowserPool {
     }
   }
 
-  /** Cheap liveness probe used by /readyz. */
   async healthCheck(): Promise<boolean> {
     try {
       const browser = await this.getBrowser();

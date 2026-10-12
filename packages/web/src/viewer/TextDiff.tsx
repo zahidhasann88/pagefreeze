@@ -2,16 +2,6 @@ import { useState } from 'react';
 import type { TextDiff as TextDiffPayload, WordChange } from '../api/types.js';
 import { EmptyState } from '../components/ui.js';
 
-/**
- * Text diff viewer.
- *
- * Two renderings of the same comparison:
- *   - word level, inline, which is what a human actually reads
- *   - line level with the unified patch, for anyone who wants the raw output
- *
- * Pure whitespace differences never reach here: the server normalises non-breaking and
- * zero-width spaces, trailing whitespace and blank-line runs before diffing.
- */
 export function TextDiff({ diff }: { diff: TextDiffPayload | null }) {
   const [view, setView] = useState<'words' | 'lines'>('words');
 
@@ -72,12 +62,6 @@ export function TextDiff({ diff }: { diff: TextDiffPayload | null }) {
   );
 }
 
-/**
- * Word-level highlight.
- *
- * Rendered as `<ins>`/`<del>` so the semantics reach assistive technology instead of
- * relying on colour alone, and so the markup stays copy-pasteable as plain text.
- */
 function WordView({ changes }: { changes: WordChange[] }) {
   if (changes.length === 0) {
     return <EmptyState title="Nothing to show" body="The word-level diff is empty." />;

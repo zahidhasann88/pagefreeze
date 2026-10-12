@@ -7,14 +7,6 @@ import { start, type StartedApp } from '../index.js';
 import { ApiClient } from './apiClient.js';
 import type { Change, Monitor, Page as ApiPage, Snapshot } from '@pagefreeze/shared';
 
-/**
- * Produce the real screenshots used in the README.
- *
- * This is the same procedure documented in README.md ("Screenshots"), run against the demo
- * stack: a fixture site that actually changes, real captures, real diffs. Nothing is mocked
- * and no placeholder imagery is committed.
- */
-
 const PORT = Number.parseInt(process.env['SHOTS_PORT'] ?? '8155', 10);
 const DB =
   process.env['DATABASE_URL_TEST'] ??
@@ -80,7 +72,7 @@ async function main(): Promise<void> {
     }
 
     // One session, reused by every context. Login is rate limited to 10 attempts per 5
-    // minutes per address - correct for the product, and it would otherwise throttle this
+
     // script partway through its 14 screenshots.
     const jar = (client as unknown as { cookies: Map<string, string> }).cookies;
     const storageState = {
@@ -97,7 +89,6 @@ async function main(): Promise<void> {
       origins: [],
     };
 
-    // ---------------------------------------------------------------- seed content
     fixture.setState({
       price: '$19',
       plans: ['Starter — $19/mo', 'Team — $49/mo', 'Enterprise — contact us'],
@@ -145,7 +136,6 @@ async function main(): Promise<void> {
       monitors.push(created.data);
     }
 
-    // Baseline captures.
     for (const monitor of monitors) {
       await client.post(`/api/v1/monitors/${monitor.id}/capture`);
     }
@@ -153,7 +143,6 @@ async function main(): Promise<void> {
       await waitForSnapshots(client, monitor.id, 1);
     }
 
-    // Now change the site and capture again, so there are real changes to show.
     fixture.setState({
       price: '$29',
       plans: ['Starter — $29/mo', 'Team — $79/mo', 'Enterprise — contact us', 'Scale — contact us'],
@@ -171,17 +160,10 @@ async function main(): Promise<void> {
       await waitForSnapshots(client, monitor.id, 2);
     }
 
-    // A third capture on the first monitor, after another change, for a richer timeline.
     fixture.setState({ price: '$24' });
     await client.post(`/api/v1/monitors/${monitors[0]!.id}/capture`);
     await waitForSnapshots(client, monitors[0]!.id, 3);
 
-    // A failing monitor, so the dashboard shows every status.
-    //
-    // The failure is seeded in the database rather than produced by capturing a slow page:
-    // a genuinely slow capture holds a browser slot for minutes and starves the API while
-    // the screenshots are being taken. The resulting state is identical to what a real
-    // failure produces.
     const failing = await client.post<Monitor>('/api/v1/monitors', {
       name: 'Legacy status page',
       url: `${fixtureUrl}/error?status=503`,
@@ -217,7 +199,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // A paused monitor.
     const paused = await client.post<Monitor>('/api/v1/monitors', {
       name: 'Holiday campaign page',
       url: `${fixtureUrl}/static`,
@@ -232,7 +213,6 @@ async function main(): Promise<void> {
       await client.post(`/api/v1/monitors/${paused.data.id}/pause`);
     }
 
-    // A notification channel, for the settings screenshot.
     await client.post('/api/v1/channels', {
       type: 'webhook',
       name: 'Ops webhook',
@@ -245,7 +225,6 @@ async function main(): Promise<void> {
     });
     await client.post('/api/v1/tokens', { name: 'ci deploy check', expiresInDays: 90 });
 
-    // ------------------------------------------------------------------- screenshots
     browser = await chromium.launch({
       chromiumSandbox: false,
       args: ['--force-color-profile=srgb', '--font-render-hinting=none', '--hide-scrollbars'],
@@ -253,11 +232,9 @@ async function main(): Promise<void> {
 
     const shots: Array<[string, (page: Page) => Promise<void>, number, number]> = [];
 
-    // Login page.
     shots.push([
       'login',
       async (page) => {
-        // Deliberately unauthenticated: this is the sign-in screen.
         await page.context().clearCookies();
         await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
         await page.waitForSelector('.login-card', { timeout: 30_000 });
@@ -266,26 +243,23 @@ async function main(): Promise<void> {
       800,
     ]);
 
-    /** The context already carries the session cookie, so this only has to land on the app. */
     const login = async (page: Page): Promise<void> => {
       await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
       await page.waitForSelector('.topbar', { timeout: 30_000 });
     };
 
-    // Dashboard.
     shots.push([
       'dashboard',
       async (page) => {
         await login(page);
         await page.waitForSelector('.monitor-card', { timeout: 30_000 });
         await page.waitForLoadState('networkidle');
-        await wait(2500); // let the thumbnails decode
+        await wait(2500);
       },
       1440,
       1000,
     ]);
 
-    // Monitor detail with its timeline.
     shots.push([
       'monitor-detail',
       async (page) => {
@@ -298,7 +272,6 @@ async function main(): Promise<void> {
       1000,
     ]);
 
-    // The change viewer, in each of its four visual modes plus the text and HTML tabs.
     const changeResponse = await client.get<ApiPage<Change>>(
       `/api/v1/monitors/${monitors[0]!.id}/changes`,
       { limit: 10 },
@@ -314,7 +287,7 @@ async function main(): Promise<void> {
         await login(page);
         await page.goto(`${baseUrl}${viewerPath}`, { waitUntil: 'networkidle' });
         await page.waitForSelector('.canvas-viewport, .split', { timeout: 30_000 });
-        await wait(2000); // let the screenshots decode before the capture
+        await wait(2000);
       };
 
       shots.push([
@@ -388,7 +361,6 @@ async function main(): Promise<void> {
       ]);
     }
 
-    // Monitor form, with a preview capture in progress/result.
     shots.push([
       'monitor-form',
       async (page) => {
@@ -414,7 +386,6 @@ async function main(): Promise<void> {
       1400,
     ]);
 
-    // Settings.
     shots.push([
       'settings',
       async (page) => {
@@ -426,7 +397,6 @@ async function main(): Promise<void> {
       1200,
     ]);
 
-    // Compare screen.
     const snapshotRows = (
       await client.get<ApiPage<Snapshot>>(`/api/v1/monitors/${monitors[0]!.id}/snapshots`, {
         limit: 10,
@@ -451,7 +421,6 @@ async function main(): Promise<void> {
       ]);
     }
 
-    // Public share page.
     if (significant) {
       const share = await client.post<{ url: string }>(`/api/v1/changes/${significant.id}/share`, {
         expiresInHours: 168,
@@ -461,7 +430,6 @@ async function main(): Promise<void> {
         shots.push([
           'share',
           async (page) => {
-            // Deliberately not logged in: this is what a recipient sees.
             await page.goto(`${baseUrl}${sharePath}`, { waitUntil: 'networkidle' });
             await page
               .waitForSelector('.canvas-viewport, .split', { timeout: 30_000 })
@@ -474,7 +442,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // Dark mode variant of the two key screens.
     for (const [name, path] of [
       ['dashboard-dark', '/'],
       [
@@ -505,7 +472,6 @@ async function main(): Promise<void> {
       ]);
     }
 
-    // Mobile viewport of the dashboard.
     shots.push([
       'dashboard-mobile',
       async (page) => {
@@ -518,8 +484,6 @@ async function main(): Promise<void> {
     ]);
 
     for (const [name, action, width, height] of shots) {
-      // The public share screenshot must NOT carry the session: it shows what an anonymous
-      // recipient sees.
       const anonymous = name === 'share';
       const context = await browser.newContext({
         viewport: { width, height },

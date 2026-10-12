@@ -2,18 +2,6 @@ import { useState } from 'react';
 import type { HtmlDiff as HtmlDiffPayload } from '../api/types.js';
 import { Alert, EmptyState } from '../components/ui.js';
 
-/**
- * HTML diff viewer.
- *
- * Rendered strictly as escaped text. Stored page HTML is third-party content and is never
- * injected into this app's DOM: doing so would let a monitored page script the Pagefreeze
- * origin. Every line goes through React's text escaping, and the raw file is available as a
- * `text/plain` download from the API.
- *
- * Unchanged runs are folded, showing three lines of context around each change, which is
- * what makes a diff of a large document readable.
- */
-
 const FOLD_THRESHOLD = 7;
 
 export function HtmlDiff({ diff }: { diff: HtmlDiffPayload | null }) {

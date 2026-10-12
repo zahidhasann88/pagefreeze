@@ -1,19 +1,9 @@
 import PgBoss from 'pg-boss';
 import type { JobQueue } from './scheduler.js';
 
-/**
- * Adapter from pg-boss to the `JobQueue` interface the scheduler depends on.
- *
- * pg-boss is used rather than a bespoke polling loop because it already solves the hard
- * parts: exactly-once delivery via `SKIP LOCKED`, cron scheduling stored in Postgres, and
- * singleton keys. Using the same database for the queue also means there is no Redis to
- * operate, which is the whole point of a self-hosted single-container deployment.
- */
 export interface PgBossQueueOptions {
   connectionString: string;
-  /** Schema pg-boss creates for its own tables. Kept separate from the app schema. */
   schema?: string;
-  /** Let pg-boss create/migrate its schema on start. */
   migrate?: boolean;
   supervisionIntervalSeconds?: number;
   logger?: { warn: (obj: unknown, msg?: string) => void };
@@ -29,8 +19,7 @@ export class PgBossQueue implements JobQueue {
       supervise: true,
       migrate: options.migrate ?? true,
       maintenanceIntervalSeconds: options.supervisionIntervalSeconds ?? 120,
-      // Completed jobs are pruned quickly: capture history lives in our own tables, the
-      // queue is only a dispatch mechanism.
+
       retentionDays: 1,
       monitoring: false,
     } as never);

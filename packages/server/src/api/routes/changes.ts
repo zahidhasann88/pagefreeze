@@ -11,10 +11,6 @@ import { isSignificant, summarizeChange, type DiffRequest } from '../../diff/typ
 import { generateToken } from '../auth.js';
 import { sendPng } from './snapshots.js';
 
-/**
- * Change endpoints: the diff viewer's data source, on-demand comparison of any two
- * snapshots, and public share links.
- */
 export async function registerChangeRoutes(app: AppInstance, deps: AppDeps): Promise<void> {
   app.get('/changes/:id', { preHandler: requireAuthenticated(deps.auth) }, async (request) => {
     const { id } = request.params as { id: string };
@@ -82,12 +78,6 @@ export async function registerChangeRoutes(app: AppInstance, deps: AppDeps): Pro
     },
   );
 
-  /**
-   * Compare any two snapshots of the same monitor on demand.
-   *
-   * With `store=false` (the default) the comparison is computed and returned but nothing
-   * is written, so an operator can explore history without polluting the change list.
-   */
   app.get('/compare', { preHandler: requireAuthenticated(deps.auth) }, async (request) => {
     const query = parseOrThrow(compareQuerySchema, request.query);
     if (query.store === 'true') await requireCsrf(true)(request);
@@ -105,7 +95,6 @@ export async function registerChangeRoutes(app: AppInstance, deps: AppDeps): Pro
       throw badRequest('Failed snapshots cannot be compared');
     }
 
-    // Order the pair chronologically so "before" is always the older capture.
     const older = a.captured_at <= b.captured_at ? a : b;
     const newer = a.captured_at <= b.captured_at ? b : a;
 
@@ -163,8 +152,6 @@ export async function registerChangeRoutes(app: AppInstance, deps: AppDeps): Pro
     return { stored: false, changeId: null, diff: serializableDiff(diff, significant) };
   });
 
-  /* ------------------------------ share links ----------------------------- */
-
   app.post(
     '/changes/:id/share',
     { preHandler: requireAuthenticated(deps.auth) },
@@ -190,8 +177,6 @@ export async function registerChangeRoutes(app: AppInstance, deps: AppDeps): Pro
       request.log.info({ changeId, shareId: link.id }, 'share link created');
 
       sendCreated(reply, {
-        // The share link's own id, which is what DELETE /shares/:id needs. Returning the
-        // change id here would make every created link impossible to revoke.
         id: link.id,
         changeId,
         url: `${base}/share/${generated.token}`,
@@ -283,13 +268,12 @@ async function buildDiffRequest(
       computeText: detectText,
       computeHtml: detectHtml,
       computeVisual: true,
-      // An on-demand comparison is displayed, not stored, so no diff PNG is built.
+
       produceDiffImage: false,
     },
   };
 }
 
-/** Strip Buffers so the payload is JSON serialisable. */
 function serializableDiff(
   diff: ReturnType<typeof runDiffInProcess>,
   significant: boolean,

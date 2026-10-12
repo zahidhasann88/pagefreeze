@@ -16,7 +16,6 @@ import {
   extractVisibleText,
   resetScroll,
 } from './extract.js';
-
 export interface CaptureCookie {
   name: string;
   value: string;
@@ -26,7 +25,6 @@ export interface CaptureCookie {
   httpOnly?: boolean;
   sameSite?: 'Lax' | 'Strict' | 'None';
 }
-
 export interface CaptureSettings {
   url: string;
   devicePreset: DevicePreset;
@@ -47,12 +45,10 @@ export interface CaptureSettings {
 }
 
 export type CaptureErrorKind = 'timeout' | 'blocked' | 'navigation' | 'render' | 'unknown';
-
 export interface BlockedRequest {
   url: string;
   reason: string;
 }
-
 export interface CaptureResult {
   ok: boolean;
   screenshot: Buffer | null;
@@ -71,7 +67,6 @@ export interface CaptureResult {
   blockedRequests: BlockedRequest[];
   hiddenElementCount: number;
 }
-
 export interface CaptureDeps {
   guard: SsrfGuard;
   logger?: {
@@ -150,7 +145,6 @@ export async function attachSsrfRouting(
     const request = route.request();
     const url = request.url();
 
-    // Non-http(s) schemes (file:, chrome:, data:, blob:, about:) are never allowed.
     let schemeOk = false;
     try {
       const parsed = new URL(url);
@@ -213,9 +207,6 @@ async function applyCookies(context: BrowserContext, settings: CaptureSettings):
   await context.addCookies(cookies).catch(() => undefined);
 }
 
-/**
- * Perform one capture inside an already-created, isolated context.
- */
 export async function captureInContext(
   context: BrowserContext,
   settings: CaptureSettings,
@@ -236,8 +227,6 @@ export async function captureInContext(
     deps.logger,
   );
 
-  // Playwright denies every permission by default for a fresh context; clearing again
-  // makes the intent explicit and guards against a future default changing.
   await context.clearPermissions().catch(() => undefined);
 
   const page: Page = await context.newPage();
@@ -285,8 +274,6 @@ export async function captureInContext(
       timeoutMs: settings.timeoutMs,
     });
 
-    // Remove noisy elements *before* the stabilisation pass and before extraction, so
-    // their absence is reflected in the screenshot, the text and the HTML alike.
     hiddenElementCount = await applyIgnoreSelectors(page, settings.ignoreSelectors);
 
     await injectStabilizeCss(page);
@@ -297,7 +284,6 @@ export async function captureInContext(
       await delay(settings.extraDelayMs);
     }
 
-    // Lazy images may still be decoding after scrolling; settle them before hashing pixels.
     await page.evaluate(`Promise.race([
       Promise.all([document.fonts.ready, ...Array.from(document.images, image => {
         image.loading = 'eager';

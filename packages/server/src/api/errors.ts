@@ -1,15 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 
-/**
- * Every API error is rendered as
- *
- *     { "error": { "code": "...", "message": "...", "details": ... } }
- *
- * `code` is machine readable and stable; `message` is safe to show a human. Internal
- * details (stack traces, SQL, file paths) are never included in a response.
- */
-
 export type ErrorCode =
   | 'bad_request'
   | 'validation_error'
@@ -70,7 +61,6 @@ export const conflict = (message = 'Conflict'): AppError => new AppError(409, 'c
 export const rateLimited = (message = 'Too many requests'): AppError =>
   new AppError(429, 'rate_limited', message);
 
-/** Flatten a ZodError into a compact, client-friendly list. */
 export function zodDetails(error: ZodError): Array<{ path: string; message: string }> {
   return error.issues.map((issue) => ({
     path: issue.path.join('.') || '(root)',
@@ -84,12 +74,6 @@ const STATUS_FOR_CODE: Record<string, number> = {
   FST_REQ_TIMEOUT: 408,
 };
 
-/**
- * Fastify error handler.
- *
- * Recognised errors pass through unchanged. Everything else becomes a 500 with a generic
- * message; the real error is logged with its stack so it is debuggable server-side only.
- */
 export function errorHandler(
   error: Error & { statusCode?: number; code?: string; validation?: unknown },
   request: FastifyRequest,
@@ -106,7 +90,6 @@ export function errorHandler(
     return;
   }
 
-  // Fastify's own validation errors (params/query typed via JSON schema).
   if (error.validation) {
     const appError = validationError('Request validation failed', error.validation);
     void reply.status(appError.status).send(appError.toJSON());

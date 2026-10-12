@@ -14,13 +14,6 @@ import { VisualDiff } from '../viewer/VisualDiff.js';
 import { TextDiff } from '../viewer/TextDiff.js';
 import { HtmlDiff } from '../viewer/HtmlDiff.js';
 
-/**
- * Compare any two snapshots of one monitor, on demand.
- *
- * The comparison is computed but not stored (`store=false`), so exploring history does not
- * add rows to the change list. The two ids may be given in either order: the server sorts
- * them chronologically and "before" is always the older capture.
- */
 export function ComparePage() {
   const { monitorId = '' } = useParams<{ monitorId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,7 +25,6 @@ export function ComparePage() {
   const [b, setB] = useState(searchParams.get('b') ?? '');
   const [tab, setTab] = useState<'visual' | 'text' | 'html'>('visual');
 
-  // Pick a sensible default pair (the two newest captures) once snapshots have loaded.
   useEffect(() => {
     if (a || b) return;
     const snapshots = snapshotsQuery.data?.data ?? [];

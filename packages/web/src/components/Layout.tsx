@@ -25,14 +25,6 @@ function readStoredTheme(): Theme {
   return 'auto';
 }
 
-/**
- * Theme handling.
- *
- * The default is `auto`, which does nothing at all: the stylesheet already follows
- * prefers-color-scheme through a media query. Only an explicit override writes
- * `data-theme` onto <html>, so there is no flash of the wrong theme on load and no JS
- * required for the common case.
- */
 export function useTheme(): [Theme, (theme: Theme) => void] {
   const [theme, setTheme] = useState<Theme>(() => readStoredTheme());
 

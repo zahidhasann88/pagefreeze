@@ -9,12 +9,6 @@ import type {
 } from '@pagefreeze/shared';
 import type { HtmlDiffResult } from '../diff/html.js';
 import type { TextDiffResult } from '../diff/text.js';
-
-/**
- * Row shapes as they come back from Postgres, plus the mapping to the public domain
- * types. Keeping the two apart means SQL changes stay inside the db layer.
- */
-
 export interface MonitorRow {
   id: string;
   name: string;
@@ -47,7 +41,6 @@ export interface MonitorRow {
   created_at: Date;
   updated_at: Date;
 }
-
 export interface MonitorSecretsRow {
   monitor_id: string;
   headers_enc: string | null;
@@ -57,12 +50,6 @@ export interface MonitorSecretsRow {
   updated_at: Date;
 }
 
-/**
- * Derive the dashboard status.
- *
- * Order matters: an explicitly paused monitor stays "paused" even if it was failing;
- * a failing monitor outranks a pending change so problems are not hidden.
- */
 export function deriveMonitorStatus(row: {
   enabled: boolean;
   paused: boolean;
@@ -77,7 +64,6 @@ function iso(value: Date | string | null | undefined): string | null {
   if (value === null || value === undefined) return null;
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
-
 export interface MonitorMappingInput {
   row: MonitorRow;
   secrets: MonitorSecretsRow | null;
@@ -126,7 +112,6 @@ export function mapMonitor({ row, secrets, channelIds }: MonitorMappingInput): M
     updatedAt: iso(row.updated_at) ?? '',
   };
 }
-
 export interface SnapshotRow {
   id: string;
   monitor_id: string;
@@ -174,7 +159,6 @@ export function mapSnapshot(row: SnapshotRow): Snapshot {
     changeId: row.change_id ?? null,
   };
 }
-
 export interface ChangeRow {
   id: string;
   monitor_id: string;
@@ -234,7 +218,6 @@ export function mapChange(row: ChangeRow): Change {
     hasDiffImage: row.diff_image_key !== null,
   };
 }
-
 export interface MonitorSummaryRow {
   id: string;
   name: string;
@@ -289,7 +272,6 @@ export function mapMonitorSummary(
     changeThreshold: row.change_threshold,
   };
 }
-
 export interface ChannelRow {
   id: string;
   name: string;
@@ -303,10 +285,6 @@ export interface ChannelRow {
   updated_at: Date;
 }
 
-/**
- * Map a channel row for the API. The `config` column is the only thing returned and it
- * is written without secrets, so a webhook signing key never reaches a client.
- */
 export function mapChannel(row: ChannelRow): NotificationChannel {
   return {
     id: row.id,

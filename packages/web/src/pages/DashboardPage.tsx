@@ -23,12 +23,6 @@ const STATUS_FILTERS: Array<{ value: MonitorListParams['status']; label: string 
   { value: 'paused', label: 'Paused' },
 ];
 
-/**
- * Debounced search text.
- *
- * The list endpoint filters server-side, so typing straight into the query would issue a
- * request per keystroke against a table that can hold thousands of monitors.
- */
 function useDebounced<T>(value: T, delayMs = 300): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -57,8 +51,6 @@ export function DashboardPage() {
   const query = useMonitors(params);
   const monitors = query.data?.data ?? [];
 
-  // Every tag currently in use, so the filter offers real choices rather than a free-text
-  // guess. Derived from the loaded page only: it is a convenience, not an index.
   const availableTags = useMemo(() => {
     const set = new Set<string>();
     for (const monitor of monitors) for (const item of monitor.tags) set.add(item);

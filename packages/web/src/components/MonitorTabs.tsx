@@ -95,11 +95,6 @@ export function MonitorSettingsTab({ monitor }: { monitor: Monitor }) {
   );
 }
 
-/**
- * Which channels this monitor notifies.
- *
- * Channels themselves are created in Settings; this tab only attaches and detaches them.
- */
 export function MonitorNotificationsTab({
   monitor,
   channels,

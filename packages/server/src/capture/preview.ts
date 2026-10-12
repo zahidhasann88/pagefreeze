@@ -7,21 +7,10 @@ import type { SsrfGuard } from './ssrf.js';
 import type { PreviewCaptureInput, PreviewCaptureResult } from '../api/deps.js';
 import type { Logger } from '../jobs/captureJob.js';
 
-/**
- * Preview capture: run the capture pipeline against a URL without persisting anything.
- *
- * Used by the monitor form's "Test capture now" button. It goes through exactly the same
- * code path as a real capture - same SSRF proxy, same context hardening, same
- * stabilisation - so what the operator sees is what the scheduled capture will produce.
- * Nothing is written to the database or to storage; the PNG comes back inline as base64.
- */
-
-/** Previews are shorter than scheduled captures: a human is waiting on the result. */
 const PREVIEW_TIMEOUT_MS = 45_000;
-/** Cap the inline payload; a very tall full-page screenshot would bloat the response. */
+
 const MAX_PREVIEW_BYTES = 6 * 1024 * 1024;
 const TEXT_PREVIEW_CHARS = 2_000;
-
 export interface PreviewDeps {
   pool: BrowserPool;
   guard: SsrfGuard;

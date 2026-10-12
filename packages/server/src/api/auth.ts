@@ -11,10 +11,8 @@ export const CSRF_COOKIE = 'pagefreeze_csrf';
 export const CSRF_HEADER = 'x-csrf-token';
 
 export type AuthKind = 'session' | 'token';
-
 export interface AuthContext {
   kind: AuthKind;
-  /** Admin username for sessions, token name for API tokens. */
   principal: string;
   sessionId?: string;
   tokenId?: string;
@@ -26,15 +24,12 @@ declare module 'fastify' {
     auth?: AuthContext;
   }
 }
-
 export interface AuthOptions {
   db: Database;
   adminUsername: string;
-  /** scrypt hash of PAGEFREEZE_ADMIN_PASSWORD, derived once at startup. */
   adminPasswordHash: string;
   secureCookies: boolean;
   sessionTtlHours: number;
-  /** Base URL used to build share links. */
   baseUrl: string;
 }
 
@@ -76,14 +71,6 @@ export function cookieOptions(
   };
 }
 
-/**
- * Verify credentials and create a session row plus its cookies.
- *
- * The password comparison is scrypt-based and constant-time. The session token and the
- * CSRF token are separate 256-bit secrets: only the session token is httpOnly, and only
- * the CSRF token is readable by scripts, which is what makes the double-submit check
- * meaningful.
- */
 export async function login(
   options: AuthOptions,
   request: FastifyRequest,
@@ -93,8 +80,6 @@ export async function login(
   const usernameMatches =
     credentials.username.trim().toLowerCase() === options.adminUsername.trim().toLowerCase();
 
-  // Always run the password check, even when the username is wrong, so that response
-  // timing does not reveal which half of the pair was incorrect.
   const passwordOk = await verifyPassword(credentials.password, options.adminPasswordHash);
 
   if (!usernameMatches || !passwordOk) {
@@ -116,7 +101,6 @@ export async function login(
   const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
 
   void reply.setCookie(SESSION_COOKIE, sessionToken, cookieOptions(options.secureCookies, maxAge));
-  // The CSRF cookie must be readable by the SPA so it can echo the value in a header.
   void reply.setCookie(CSRF_COOKIE, csrfToken, {
     ...cookieOptions(options.secureCookies, maxAge),
     httpOnly: false,
@@ -138,10 +122,6 @@ export async function logout(
   void reply.clearCookie(CSRF_COOKIE, { path: '/' });
 }
 
-/**
- * Resolve the caller from either a session cookie or a bearer API token.
- * Returns null when neither is present or valid.
- */
 export async function resolveAuth(
   options: AuthOptions,
   request: FastifyRequest,
@@ -154,7 +134,6 @@ export async function resolveAuth(
     const row = await queries.findApiTokenByHash(options.db, hashToken(token));
     if (!row) return null;
 
-    // Update last_used_at without awaiting it on the request path.
     void queries.touchApiToken(options.db, row.id).catch(() => undefined);
 
     return { kind: 'token', principal: row.name, tokenId: row.id };
@@ -176,11 +155,6 @@ export async function resolveAuth(
   };
 }
 
-/**
- * Require an authenticated caller.
- *
- * Attached as a preHandler on every route except the public ones (login, health, share).
- */
 export function requireAuth(options: AuthOptions) {
   return async (request: FastifyRequest): Promise<void> => {
     const auth = await resolveAuth(options, request);
@@ -189,17 +163,6 @@ export function requireAuth(options: AuthOptions) {
   };
 }
 
-/**
- * CSRF protection for cookie-authenticated mutating requests.
- *
- * The check is a double submit: the caller must present, in a header that a cross-origin
- * page cannot set, the same CSRF token that is bound to the session row. Requests
- * authenticated with a bearer token are exempt because a token is not an ambient
- * credential and cannot be forged by another origin.
- *
- * `SameSite=Lax` on the session cookie already blocks cross-site POSTs in modern
- * browsers; this is the defence for the ones that do not.
- */
 export function requireCsrf(force = false) {
   return async (request: FastifyRequest): Promise<void> => {
     const auth = request.auth;
@@ -223,7 +186,6 @@ export function requireCsrf(force = false) {
   };
 }
 
-/** Require authentication *and* CSRF for mutating calls. */
 export function requireAuthenticated(options: AuthOptions) {
   const auth = requireAuth(options);
   const csrf = requireCsrf();

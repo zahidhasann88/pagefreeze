@@ -25,11 +25,6 @@ import type { HtmlDiffResult } from '../diff/html.js';
 import type { TextDiffResult } from '../diff/text.js';
 import type { DiffRegion } from '@pagefreeze/shared';
 
-/**
- * All SQL in the application lives in this module. Route handlers and jobs never build
- * queries themselves, which keeps the storage shape changeable in one place.
- */
-
 const MONITOR_COLUMNS = `
   id, name, url, enabled, paused, schedule_kind, schedule_value, schedule_cron,
   device_preset, viewport_width, viewport_height, full_page, wait_strategy, wait_selector,
@@ -37,7 +32,6 @@ const MONITOR_COLUMNS = `
   detect_text, detect_html, retention_days, tags, consecutive_failures, failure_notified,
   last_run_at, last_snapshot_at, last_change_at, created_at, updated_at
 `;
-
 export interface MonitorInsert {
   name: string;
   url: string;
@@ -64,14 +58,9 @@ export interface MonitorInsert {
   headerNames: string[];
   cookieNames: string[];
 }
-
 export interface MonitorUpdate extends Partial<MonitorInsert> {
   paused?: boolean;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Monitors                                                                    */
-/* -------------------------------------------------------------------------- */
 
 async function loadSecrets(db: Database, monitorId: string): Promise<MonitorSecretsRow | null> {
   const result = await db.query<MonitorSecretsRow>(
@@ -113,7 +102,6 @@ export async function getMonitor(db: Database, id: string): Promise<Monitor | nu
   return withScheduleInfo(monitor);
 }
 
-/** Fill in the derived schedule fields that are not stored as columns. */
 export function withScheduleInfo(monitor: Monitor): Monitor {
   return {
     ...monitor,
@@ -127,7 +115,6 @@ export function withScheduleInfo(monitor: Monitor): Monitor {
         : null,
   };
 }
-
 export interface MonitorListFilters {
   status?: 'ok' | 'changed' | 'failing' | 'paused' | 'all';
   tag?: string;
@@ -251,7 +238,7 @@ async function loadSparklines(db: Database, monitorIds: string[]): Promise<Map<s
   for (const row of result.rows) {
     const bucket = map.get(row.monitor_id);
     if (!bucket) continue;
-    // day 0 = today -> last slot
+
     const index = 13 - row.day;
     if (index >= 0 && index < 14) bucket[index] = row.cnt;
   }
@@ -502,13 +489,6 @@ export async function incrementConsecutiveFailures(
   };
 }
 
-/**
- * Clear the failure streak after a successful capture and report what the streak was,
- * so the caller can decide whether a recovery notification is due.
- *
- * The CTE reads the old values in the same statement as the update: a separate SELECT
- * would already see the reset row.
- */
 export async function resetConsecutiveFailures(
   db: Database,
   id: string,
@@ -564,16 +544,7 @@ export async function getMonitorSecrets(
   if (!result) return null;
   return { headersEnc: result.headers_enc, cookiesEnc: result.cookies_enc };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Snapshots                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface SnapshotInsert {
-  /**
-   * Supplied by the caller so the row id matches the storage keys derived from it. Letting
-   * Postgres mint the id would leave artefacts on disk under a path that no row points at.
-   */
   id: string;
   monitorId: string;
   status: 'success' | 'failed';
@@ -634,7 +605,6 @@ export async function insertSnapshot(db: Database, input: SnapshotInsert): Promi
   );
   return mapSnapshot(result.rows[0]!);
 }
-
 export interface SnapshotListFilters {
   status?: 'success' | 'failed' | 'all';
   limit: number;
@@ -695,7 +665,6 @@ export async function getSnapshot(db: Database, id: string): Promise<Snapshot | 
   const row = result.rows[0];
   return row ? mapSnapshot(row) : null;
 }
-
 export interface SnapshotRowWithKeys extends SnapshotRow {
   monitor_url?: string;
   monitor_name?: string;
@@ -714,10 +683,6 @@ export async function getSnapshotRow(
   return result.rows[0] ?? null;
 }
 
-/**
- * The most recent successful snapshot *before* the given one. This is the baseline a
- * new capture is compared against; failed snapshots are never a baseline.
- */
 export async function getPreviousSuccessfulSnapshot(
   db: Database,
   monitorId: string,
@@ -760,7 +725,6 @@ export async function getLatestSuccessfulSnapshot(
   return result.rows[0] ?? null;
 }
 
-/** Find an earlier snapshot whose screenshot hash matches, for duplicate skipping. */
 export async function findSnapshotByScreenshotHash(
   db: Database,
   monitorId: string,
@@ -784,11 +748,6 @@ export async function deleteSnapshotFiles(db: Database, ids: string[]): Promise<
   );
   return result.rows.map((row) => row.key).filter((key): key is string => Boolean(key));
 }
-
-/* -------------------------------------------------------------------------- */
-/* Changes                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export interface ChangeInsert {
   monitorId: string;
   fromSnapshotId: string | null;
@@ -887,7 +846,6 @@ export async function getChangeById(db: Database, id: string): Promise<Change | 
   const row = await getChange(db, id);
   return row ? mapChange(row) : null;
 }
-
 export interface ChangeListFilters {
   significant?: 'true' | 'false' | 'all';
   limit: number;
@@ -915,8 +873,6 @@ export async function listChanges(
 
   params.push(filters.limit + 1);
 
-  // text_diff / html_diff are deliberately excluded from lists: they are large and the
-  // list view only needs the stats.
   const result = await db.query<ChangeRow>(
     `SELECT c.id, c.monitor_id, c.from_snapshot_id, c.to_snapshot_id, c.created_at,
             c.pixel_diff_percent, c.changed_pixels, c.total_pixels, c.size_changed,
@@ -942,7 +898,6 @@ export async function listChanges(
   };
 }
 
-/** The change that follows `id` for the same monitor (older direction), for prev/next nav. */
 export async function getNeighbouringChangeIds(
   db: Database,
   monitorId: string,
@@ -989,11 +944,6 @@ export async function getLatestChangeForMonitor(
   const row = result.rows[0];
   return row ? mapChange(row) : null;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Notification channels                                                       */
-/* -------------------------------------------------------------------------- */
-
 export interface ChannelInsert {
   name: string;
   type: 'webhook' | 'slack' | 'email';
@@ -1106,11 +1056,6 @@ export async function recordChannelDelivery(
     [id, error],
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/* API tokens                                                                  */
-/* -------------------------------------------------------------------------- */
-
 export interface ApiTokenRow {
   id: string;
   name: string;
@@ -1165,11 +1110,6 @@ export async function revokeApiToken(db: Database, id: string): Promise<boolean>
   );
   return (result.rowCount ?? 0) > 0;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Sessions                                                                    */
-/* -------------------------------------------------------------------------- */
-
 export interface SessionRow {
   id: string;
   username: string;
@@ -1228,11 +1168,6 @@ export async function deleteExpiredSessions(db: Database): Promise<number> {
   const result = await db.query(`DELETE FROM sessions WHERE expires_at <= now()`);
   return result.rowCount ?? 0;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Share links                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export interface ShareLinkRow {
   id: string;
   change_id: string;
@@ -1290,21 +1225,12 @@ export async function revokeShareLink(db: Database, id: string): Promise<boolean
 export async function incrementShareView(db: Database, id: string): Promise<void> {
   await db.query(`UPDATE share_links SET view_count = view_count + 1 WHERE id = $1`, [id]);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Retention and housekeeping                                                  */
-/* -------------------------------------------------------------------------- */
-
 export interface RetentionTarget {
   id: string;
   monitorId: string;
   retentionDays: number;
 }
 
-/**
- * Monitors with snapshots older than their retention window. Per-monitor retention wins
- * over the global default.
- */
 export async function listRetentionTargets(
   db: Database,
   defaultRetentionDays: number,
@@ -1319,10 +1245,6 @@ export async function listRetentionTargets(
   }));
 }
 
-/**
- * Snapshot ids that are older than the cutoff. The newest successful snapshot is always
- * kept, even when it is older than the cutoff, so a monitor never loses its baseline.
- */
 export async function listExpiredSnapshotIds(
   db: Database,
   monitorId: string,
@@ -1347,8 +1269,7 @@ export async function listExpiredSnapshotIds(
 
 export async function deleteSnapshots(db: Database, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  // changes referencing these snapshots cascade via to_snapshot_id ON DELETE CASCADE;
-  // from_snapshot_id is SET NULL so the neighbouring change keeps its stats.
+
   const result = await db.query('DELETE FROM snapshots WHERE id = ANY($1::uuid[])', [ids]);
   return result.rowCount ?? 0;
 }
@@ -1374,7 +1295,6 @@ export async function deleteChangesByIds(db: Database, ids: string[]): Promise<n
   return result.rowCount ?? 0;
 }
 
-/** Every artefact key currently referenced by the database, for orphan cleanup. */
 export async function listReferencedKeys(db: Database): Promise<Set<string>> {
   const keys = new Set<string>();
 
@@ -1390,7 +1310,6 @@ export async function listReferencedKeys(db: Database): Promise<Set<string>> {
 
   return keys;
 }
-
 export interface StorageStats {
   snapshots: number;
   changes: number;
@@ -1426,10 +1345,6 @@ export async function getDatabaseInfo(
     return { version: null, sizeBytes: null };
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/* Dashboard                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export async function getDashboardCounts(db: Database): Promise<{
   monitors: number;

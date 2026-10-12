@@ -38,7 +38,6 @@ import { MonitorNotificationsTab, MonitorSettingsTab } from '../components/Monit
 
 type Tab = 'timeline' | 'settings' | 'notifications';
 
-/** Long enough for a slow page, short enough that a lost job does not poll forever. */
 const CAPTURE_POLL_WINDOW_MS = 120_000;
 
 export function MonitorDetailPage() {
@@ -48,10 +47,6 @@ export function MonitorDetailPage() {
   const [tab, setTab] = useState<Tab>('timeline');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  /**
-   * A manual capture is accepted with 202 and then runs, so the new snapshot does not exist
-   * yet when the mutation resolves. Poll until it appears, or until the deadline passes.
-   */
   const [awaitingSince, setAwaitingSince] = useState<number | null>(null);
   const polling = awaitingSince !== null && Date.now() - awaitingSince < CAPTURE_POLL_WINDOW_MS;
 
@@ -273,7 +268,6 @@ export function MonitorDetailPage() {
     </div>
   );
 }
-
 interface TimelineEntry {
   id: string;
   when: string;
@@ -281,13 +275,6 @@ interface TimelineEntry {
   change: Change | null;
 }
 
-/**
- * One list combining snapshots and the changes they produced, newest first.
- *
- * The two collections are fetched separately and merged client-side, because the API pages
- * them independently and a change exists only for snapshots that had a successful
- * predecessor.
- */
 function TimelineTab({
   monitorId,
   polling,
@@ -314,23 +301,6 @@ function TimelineTab({
     { refetchIntervalMs: polling ? 2000 : false },
   );
 
-  /**
-   * Stop polling only once the new snapshot has reached a terminal state.
-   *
-   * A snapshot row is written first and its change row a moment later, after the diff has
-   * been computed. Settling on "a new snapshot exists" therefore stops the refresh before
-   * the change is visible, and the timeline would show a capture with no result until the
-   * next manual reload. The terminal states are: failed, de-duplicated (nothing changed), or
-   * carrying a changeId whose change has actually arrived in the changes query. The very
-   * first capture of a monitor has no predecessor, so a single snapshot with no change is
-   * also terminal.
-   *
-   * The snapshots and changes queries poll on independent intervals, so a snapshots tick can
-   * see the new changeId while the changes query still holds its pre-diff page. Settling on
-   * the changeId alone would then freeze the timeline with an empty change map (the row
-   * would render as a baseline even though a change exists). Requiring the change object to
-   * be loaded keeps polling for one more tick until both queries agree.
-   */
   const snapshotRows = snapshotsQuery.data?.data ?? [];
   const newest = snapshotRows[0];
   const changeRows = changesQuery.data?.data ?? [];
@@ -340,8 +310,6 @@ function TimelineTab({
     changeRows.some((change) => change.toSnapshotId === newest.id);
   const baselineId = useRef<string | null>(null);
 
-  // Record what was newest when the capture was requested, so "new" is unambiguous even if
-  // the browser and server clocks disagree.
   useEffect(() => {
     if (awaitingSince !== null) baselineId.current = newest?.id ?? null;
     // Intentionally keyed only on awaitingSince: baselineId records what was newest
@@ -462,8 +430,6 @@ function TimelineRow({ entry, monitorId }: { entry: TimelineEntry; monitorId: st
                 files stored
               </>
             ) : snapshot.changeId ? (
-              // Transient: the snapshot references a change the changes query has not
-              // delivered yet. Never label this a baseline — a change exists.
               <span className="muted">Change recorded — loading details…</span>
             ) : (
               <span className="muted">Baseline capture — nothing to compare against yet</span>

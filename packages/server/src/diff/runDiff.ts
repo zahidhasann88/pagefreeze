@@ -4,9 +4,6 @@ import { visualDiff } from './visual.js';
 import { textDiff, type TextDiffResult } from './text.js';
 import { htmlDiff, type HtmlDiffResult } from './html.js';
 
-/**
- * Perform a full comparison. Pure and synchronous: safe to call from a worker thread.
- */
 export function runDiffInProcess(request: DiffRequest): DiffResult {
   const started = Date.now();
   const options = { ...DEFAULT_DIFF_OPTIONS, ...request.options };

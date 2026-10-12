@@ -15,7 +15,6 @@ import {
 import type { MonitorFormValues, NotificationChannel, PreviewResult } from '../api/types.js';
 import { Alert, Spinner, bytesLabel, durationLabel } from './ui.js';
 import { IconCamera } from './Icons.js';
-
 export interface MonitorFormProps {
   initialValues?: Partial<MonitorFormValues>;
   channels: NotificationChannel[];
@@ -70,7 +69,6 @@ function emptyForm(): MonitorFormValues {
   };
 }
 
-/** Apply a device preset's viewport, unless the operator has already customised it. */
 function viewportForPreset(preset: DevicePreset): { width: number; height: number } {
   switch (preset) {
     case 'tablet':
@@ -112,8 +110,6 @@ export function MonitorForm(props: MonitorFormProps) {
     setValues((current) => ({ ...current, [key]: value }));
   };
 
-  /* ------------------------------------------------------- schedule feedback */
-
   const scheduleError = useMemo(() => {
     if (values.scheduleKind === 'preset') {
       return (INTERVAL_PRESET_KEYS as string[]).includes(values.scheduleValue)
@@ -134,8 +130,6 @@ export function MonitorForm(props: MonitorFormProps) {
     }
     return describeCron(values.scheduleValue);
   }, [values.scheduleKind, values.scheduleValue]);
-
-  /* ------------------------------------------------------------ validation */
 
   const errors = useMemo(() => {
     const found: Record<string, string> = {};
@@ -179,8 +173,6 @@ export function MonitorForm(props: MonitorFormProps) {
 
   const showError = (key: string): string | undefined => (touched ? errors[key] : undefined);
 
-  /* --------------------------------------------------------------- actions */
-
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     setTouched(true);
@@ -200,8 +192,6 @@ export function MonitorForm(props: MonitorFormProps) {
       setPreviewError(error instanceof Error ? error.message : String(error));
     }
   };
-
-  /* ------------------------------------------------------------ tag editor */
 
   const addTag = (): void => {
     const tag = tagDraft.trim();
@@ -239,8 +229,6 @@ export function MonitorForm(props: MonitorFormProps) {
     set('cookies', [...values.cookies, { name, value: cookieDraft.value }]);
     setCookieDraft({ name: '', value: '' });
   };
-
-  /* ------------------------------------------------------------------ view */
 
   return (
     <form className="stack" onSubmit={submit} noValidate>

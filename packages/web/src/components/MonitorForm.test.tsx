@@ -4,13 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { MonitorForm } from '../components/MonitorForm.js';
 import type { MonitorFormValues, NotificationChannel, PreviewResult } from '../api/types.js';
 
-/**
- * Monitor form tests.
- *
- * The form is where most operator mistakes happen, so these cover validation feedback, the
- * cron description, the schedule minimum-interval rule, and the "test capture now" preview.
- */
-
 const channels: NotificationChannel[] = [
   {
     id: 'channel-1',
@@ -48,7 +41,6 @@ function renderForm(props: Partial<Parameters<typeof MonitorForm>[0]> = {}) {
   return { ...utils, onSubmit, onPreview };
 }
 
-/** The single "Add" button inside a labelled field. */
 function addButton(labelText: RegExp): HTMLElement {
   const input = screen.getByLabelText(labelText);
   const row = input.closest('.row') as HTMLElement;
@@ -102,7 +94,6 @@ describe('MonitorForm defaults', () => {
       existingSecrets: { headerNames: ['Authorization'], cookieNames: ['sid'] },
     });
 
-    // One badge for the stored header, one for the stored cookie.
     expect(screen.getAllByTitle('Stored; value hidden')).toHaveLength(2);
     expect(screen.getByText('Authorization')).toBeInTheDocument();
     expect(screen.getByText('sid')).toBeInTheDocument();
@@ -132,7 +123,7 @@ describe('MonitorForm validation', () => {
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(await screen.findByText(/only http and https/i)).toBeInTheDocument();
-    // The field is marked invalid for assistive technology, not just visually.
+
     expect(screen.getByLabelText(/^url$/i)).toHaveAttribute('aria-invalid', 'true');
   });
 
@@ -199,7 +190,7 @@ describe('MonitorForm validation', () => {
 describe('MonitorForm schedule', () => {
   it('describes a preset interval in plain language', () => {
     renderForm();
-    // The hint under the select spells out both the words and the derived cron.
+
     expect(screen.getByText(/^every day \(0 0 \* \* \*\)$/i)).toBeInTheDocument();
 
     const preset = screen.getByLabelText(/^interval$/i);
@@ -242,7 +233,7 @@ describe('MonitorForm schedule', () => {
     const cron = await screen.findByLabelText(/^cron \(minute hour/i);
     await user.clear(cron);
     await user.type(cron, 'every morning');
-    await user.tab(); // blur, which marks the field as touched
+    await user.tab();
 
     expect(await screen.findByText(/not a valid 5-field cron expression/i)).toBeInTheDocument();
     expect(cron).toHaveAttribute('aria-invalid', 'true');
@@ -268,7 +259,7 @@ describe('MonitorForm schedule', () => {
     renderForm();
     await user.click(screen.getByRole('radio', { name: /cron expression/i }));
     const cron = await screen.findByLabelText(/^cron \(minute hour/i);
-    // The form must never hand the operator an expression that fails validation.
+
     expect(cron).toHaveValue('0 6 * * *');
     expect(screen.queryByText(/not a valid/i)).not.toBeInTheDocument();
   });
@@ -286,7 +277,7 @@ describe('MonitorForm list editors', () => {
 
     await user.type(tagInput, 'pricing');
     await user.keyboard('{Enter}');
-    // Still exactly one chip.
+
     expect(screen.getAllByTitle('Remove tag pricing')).toHaveLength(1);
 
     await user.click(screen.getByTitle('Remove tag pricing'));
@@ -323,7 +314,7 @@ describe('MonitorForm list editors', () => {
     await user.click(addButton(/^header value$/i));
 
     expect(screen.getByText('Authorization')).toBeInTheDocument();
-    // The value is masked, never echoed.
+
     expect(screen.queryByText('Bearer abc123')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /create monitor/i }));
@@ -592,8 +583,6 @@ describe('MonitorForm test capture', () => {
   it('disables the preview button while the form is invalid', async () => {
     renderForm({ onPreview: vi.fn() });
 
-    // An empty form cannot be captured, so the button explains why rather than failing
-    // opaquely when clicked.
     const preview = screen.getByRole('button', { name: /test capture now/i });
     expect(preview).toBeDisabled();
     expect(preview).toHaveAttribute('title', 'Fix the errors above first');

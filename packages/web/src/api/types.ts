@@ -1,8 +1,3 @@
-/**
- * The web app consumes the shared types directly, so the API contract exists in exactly
- * one place. Anything UI-only lives in this file.
- */
-
 export type {
   ApiToken,
   ApiTokenCreated,
@@ -23,8 +18,6 @@ export type {
 } from '@pagefreeze/shared';
 
 import type { Change, Monitor, NotificationChannel, Snapshot } from '@pagefreeze/shared';
-
-/** `/changes/:id` returns the change plus its diff bodies and navigation. */
 export interface ChangeDetail extends Omit<Change, 'hasDiffImage'> {
   hasDiffImage: boolean;
   monitor: { id: string; name: string | null; url: string | null };
@@ -37,7 +30,6 @@ export interface ChangeDetail extends Omit<Change, 'hasDiffImage'> {
   durationMs: number | null;
   shares: ShareSummary[];
 }
-
 export interface ShareSummary {
   id: string;
   changeId?: string;
@@ -49,13 +41,11 @@ export interface ShareSummary {
   viewCount?: number;
   active?: boolean;
 }
-
 export interface WordChange {
   value: string;
   added?: boolean;
   removed?: boolean;
 }
-
 export interface DiffHunk {
   oldStart: number;
   oldLines: number;
@@ -63,7 +53,6 @@ export interface DiffHunk {
   newLines: number;
   lines: string[];
 }
-
 export interface TextDiff {
   added: number;
   removed: number;
@@ -78,19 +67,16 @@ export interface TextDiff {
    */
   wordDiffSkipped: boolean;
 }
-
 export interface HtmlDiffLine {
   type: 'add' | 'remove' | 'unchanged';
   text: string;
   oldLine: number | null;
   newLine: number | null;
 }
-
 export interface HtmlDiffBlock {
   folded: boolean;
   lines: HtmlDiffLine[];
 }
-
 export interface HtmlDiff {
   added: number;
   removed: number;
@@ -100,7 +86,6 @@ export interface HtmlDiff {
   newLineCount: number;
   truncated: boolean;
 }
-
 export interface CompareResult {
   stored: boolean;
   changeId: string | null;
@@ -118,7 +103,6 @@ export interface CompareResult {
     durationMs: number;
   };
 }
-
 export interface PreviewResult {
   ok: boolean;
   error: string | null;
@@ -133,21 +117,18 @@ export interface PreviewResult {
   textPreview: string;
   blockedRequests: Array<{ url: string; reason: string }>;
 }
-
 export interface ChannelTestResult {
   ok: boolean;
   status: number | null;
   error: string | null;
   durationMs: number;
 }
-
 export interface MeResponse {
   username: string;
   kind: 'session' | 'token';
   csrfToken: string | null;
   permissions: string[];
 }
-
 export interface ShareView {
   change: Change;
   monitor: { id: string; name: string | null; url: string | null };
@@ -161,7 +142,6 @@ export interface ShareView {
   };
 }
 
-/** The subset of a monitor the create/update forms submit. */
 export type MonitorFormValues = Pick<
   Monitor,
   | 'name'

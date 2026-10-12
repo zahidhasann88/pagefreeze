@@ -1,12 +1,3 @@
-/**
- * Opaque cursors for keyset pagination.
- *
- * Offset pagination degrades badly on the snapshots table (a busy monitor accumulates
- * thousands of rows), so every list endpoint pages by a sort key. The cursor is the
- * base64url encoding of the last row's sort key, which keeps it opaque to clients and
- * stable across inserts.
- */
-
 export function encodeCursor(parts: Array<string | number | null>): string {
   const payload = parts.map((part) => (part === null || part === undefined ? '' : String(part)));
   return Buffer.from(payload.join('\u0000'), 'utf8').toString('base64url');
@@ -23,10 +14,6 @@ export function decodeCursor(cursor: string | undefined | null): string[] | null
   }
 }
 
-/**
- * Decode a two-part `timestamp,id` cursor. Returns null when the cursor is missing or
- * malformed so callers can fall back to the first page instead of erroring.
- */
 export function decodeTimeIdCursor(
   cursor: string | undefined | null,
 ): { at: Date; id: string } | null {

@@ -1,43 +1,28 @@
 import { diffLines } from 'diff';
 import { normalizeHtml } from './normalize.js';
 
-/** Number of unchanged lines kept around each change so the UI has context. */
 export const HTML_CONTEXT_LINES = 3;
 
-/** Cap on the number of lines stored in the output, so a full page rewrite stays bounded. */
 export const MAX_HTML_DIFF_LINES = 4_000;
 
-/**
- * Cap on the normalised input handed to jsdiff.
- *
- * jsdiff's cost grows with both the input size and the number of differences, so a complete
- * rewrite of a very large document is quadratic. 6000 normalised lines is roughly 2000
- * block elements, well above any realistic page, and hitting the cap sets `truncated` so the
- * UI reports it rather than silently showing a partial diff.
- */
 export const MAX_HTML_DIFF_INPUT_LINES = 6_000;
 
 export type HtmlDiffLineType = 'add' | 'remove' | 'unchanged';
-
 export interface HtmlDiffLine {
   type: HtmlDiffLineType;
   text: string;
   oldLine: number | null;
   newLine: number | null;
 }
-
 export interface HtmlDiffBlock {
-  /** True for a folded run of unchanged lines (rendered as "@@ … N unchanged lines"). */
   folded: boolean;
   lines: HtmlDiffLine[];
 }
-
 export interface HtmlDiffResult {
   added: number;
   removed: number;
   identical: boolean;
   blocks: HtmlDiffBlock[];
-  /** Total number of lines on each side, so the UI can show how much was skipped. */
   oldLineCount: number;
   newLineCount: number;
   truncated: boolean;
@@ -67,19 +52,12 @@ function countLines(text: string): number {
   return count;
 }
 
-/** Keep the first MAX_HTML_DIFF_INPUT_LINES lines plus a marker. */
 function truncateLines(text: string): string {
   const lines = text.split('\n');
   if (lines.length <= MAX_HTML_DIFF_INPUT_LINES) return text;
   return [...lines.slice(0, MAX_HTML_DIFF_INPUT_LINES), '<!-- diff input truncated -->'].join('\n');
 }
 
-/**
- * Line diff over normalised HTML, with unchanged runs folded away.
- *
- * Both inputs are normalised first so that attribute reordering, nonces, inline styles
- * and `<script>` churn never register as a change.
- */
 export function htmlDiff(beforeHtml: string, afterHtml: string): HtmlDiffResult {
   const normalizedBefore = normalizeHtml(beforeHtml);
   const normalizedAfter = normalizeHtml(afterHtml);
@@ -99,7 +77,6 @@ export function htmlDiff(beforeHtml: string, afterHtml: string): HtmlDiffResult 
   const oldLines = splitLines(before);
   const newLines = splitLines(after);
 
-  // Flatten into a typed sequence with line numbers.
   const flat: HtmlDiffLine[] = [];
   let oldIndex = 0;
   let newIndex = 0;

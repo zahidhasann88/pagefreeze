@@ -1,34 +1,13 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-
-/**
- * The fixture site.
- *
- * One small HTTP server that plays the part of "a website someone wants to watch". It is
- * used by the demo (`pnpm demo`) and by the integration tests, so both exercise the real
- * capture pipeline against real HTML rather than mocks.
- *
- * Everything it serves is deterministic for a given state: fixed layout, no external
- * assets, no web fonts, no randomness except where a test explicitly asks for it. That is
- * what makes pixel diffs reproducible.
- */
-
 export interface FixtureState {
-  /** Shown as the headline price. */
   price: string;
-  /** Shown in the plan list. */
   plans: string[];
-  /** Terms text, one paragraph per line. */
   terms: string[];
-  /** Rendered inside `#clock`. Volatile on purpose: it changes on every request. */
   includeClock: boolean;
-  /** Rendered inside `#banner`. Also volatile (a rotating message). */
   includeBanner: boolean;
-  /** Height of the page body, to exercise size-change handling. */
   bodyHeight: number;
-  /** Number of below-the-fold images, to exercise lazy loading. */
   lazyImages: number;
-  /** Extra CSS applied to the page. */
   accent: string;
 }
 
@@ -55,7 +34,6 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Build the monitored page for a given state. */
 export function renderPage(
   state: FixtureState,
   meta: { requestCount: number; path: string },
@@ -78,8 +56,6 @@ export function renderPage(
     .join('\n');
 
   const lazy = Array.from({ length: state.lazyImages }, (_unused, index) => {
-    // A data URI keeps the fixture offline-safe: no external request is needed for the
-    // image to appear, but it is still `loading="lazy"` so scrolling matters.
     const hue = (index * 47) % 360;
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='320' height='180' fill='hsl(${hue},45%,60%)'/><text x='16' y='96' font-size='28' fill='white'>item ${index + 1}</text></svg>`;
     const encoded = Buffer.from(svg).toString('base64');
@@ -146,9 +122,7 @@ ${spacer}
 </html>
 `;
 }
-
 export interface FixtureServerOptions {
-  /** Start on a fixed port instead of an ephemeral one. */
   port?: number;
   host?: string;
   initialState?: Partial<FixtureState>;
@@ -198,10 +172,6 @@ export class FixtureServer {
     return { baseUrl: this.baseUrl, port: this.port };
   }
 
-  /**
-   * Mutate the served page every `intervalMs`. Used by the demo so a new user sees a real
-   * change appear without waiting for a schedule.
-   */
   startAutoChange(intervalMs = 4000): void {
     this.stopAutoChange();
     let tick = 0;
@@ -266,7 +236,6 @@ export class FixtureServer {
         send(200, renderPage(this.state, { requestCount: this.requestCount, path }));
         return;
 
-      /** A page with no volatile parts at all: captures of it are always identical. */
       case '/static':
         send(
           200,
@@ -277,7 +246,6 @@ export class FixtureServer {
         );
         return;
 
-      /** Control endpoint used by tests and the demo. */
       case '/__state':
         if (req.method === 'POST') {
           const chunks: Buffer[] = [];
@@ -302,31 +270,24 @@ export class FixtureServer {
         send(200, JSON.stringify({ ok: true }), 'application/json');
         return;
 
-      /* ---- SSRF test endpoints ---------------------------------------- */
-
-      /** Redirects to the loopback address; the guard must refuse to follow. */
       case '/redirect-loopback': {
         const target = url.searchParams.get('to') ?? `http://127.0.0.1:${this.port}/private`;
         redirect(target);
         return;
       }
 
-      /** Redirects to the cloud metadata address. */
       case '/redirect-metadata':
         redirect(url.searchParams.get('to') ?? 'http://169.254.169.254/latest/meta-data/');
         return;
 
-      /** Redirects to a private range address. */
       case '/redirect-private':
         redirect(url.searchParams.get('to') ?? 'http://192.168.0.1/admin');
         return;
 
-      /** Two hops, the second one landing on a blocked address. */
       case '/redirect-chain':
         redirect(`/redirect-metadata`);
         return;
 
-      /** Should never be rendered: reaching it means the guard failed. */
       case '/private':
         send(
           200,
@@ -334,7 +295,6 @@ export class FixtureServer {
         );
         return;
 
-      /** A page that tries to pull in a blocked subresource. */
       case '/subresource': {
         const target = url.searchParams.get('to') ?? 'http://169.254.169.254/latest/meta-data/';
         send(
@@ -346,8 +306,6 @@ export class FixtureServer {
         );
         return;
       }
-
-      /* ---- behaviour endpoints ---------------------------------------- */
 
       case '/slow': {
         const ms = Number.parseInt(url.searchParams.get('ms') ?? '90000', 10);
@@ -368,8 +326,6 @@ export class FixtureServer {
         return;
 
       case '/late-content': {
-        // Content appears only after JS runs, so `load` alone is not enough: this is what
-        // the `selector` wait strategy and `extraDelayMs` exist for.
         const delayMs = Number.parseInt(url.searchParams.get('ms') ?? '1200', 10);
         send(
           200,

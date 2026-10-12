@@ -1,13 +1,5 @@
-/**
- * Shared, dependency-free constants used by both the server and the web UI.
- */
-
 export const VERSION = '0.1.0';
 
-/**
- * Contact / crawl-identification part of the default User-Agent.
- * The server appends `Pagefreeze/<VERSION>` at runtime so the two never drift.
- */
 export const USER_AGENT_PRODUCT = 'Pagefreeze';
 
 export const USER_AGENT_URL = 'https://github.com/zahidhasann88/pagefreeze';
@@ -81,7 +73,6 @@ export type ChannelType = (typeof CHANNEL_TYPES)[number];
 export const SNAPSHOT_STATUSES = ['success', 'failed'] as const;
 export type SnapshotStatus = (typeof SNAPSHOT_STATUSES)[number];
 
-/** Hard caps so a hostile or clumsy request cannot exhaust the box. */
 export const LIMITS = {
   nameMax: 200,
   urlMax: 2048,

@@ -65,8 +65,8 @@ describe('textDiff', () => {
   it('counts added and removed lines', () => {
     const result = textDiff('one\ntwo\nthree', 'one\nTWO\nthree\nfour');
     expect(result.identical).toBe(false);
-    expect(result.removed).toBe(1); // "two"
-    expect(result.added).toBe(2); // "TWO" and "four"
+    expect(result.removed).toBe(1);
+    expect(result.added).toBe(2);
   });
 
   it('produces word-level changes', () => {
@@ -115,7 +115,7 @@ describe('textDiff', () => {
     const totalLines = result.hunks.reduce((sum, hunk) => sum + hunk.lines.length, 0);
     expect(totalLines).toBeLessThanOrEqual(MAX_DIFF_LINES);
     expect(result.truncated).toBe(true);
-    // Stats describe the whole change even though the display is truncated.
+
     expect(result.added).toBe(1200);
     expect(result.removed).toBe(1200);
     // The word-level pass is skipped for inputs this large: it is quadratic.
@@ -131,7 +131,7 @@ describe('textDiff', () => {
     const result = textDiff(before, after);
     expect(result.wordDiffSkipped).toBe(true);
     expect(result.wordChanges).toEqual([]);
-    // Line level still works, which is what the UI falls back to.
+
     expect(result.added).toBeGreaterThan(0);
     expect(result.removed).toBeGreaterThan(0);
   });
@@ -237,7 +237,6 @@ describe('normalizeHtml', () => {
   });
 
   it('is a pure function with no state between calls', () => {
-    // A dropped element must not leak into the next call.
     normalizeHtml('<script>ignored</script>');
     const out = normalizeHtml('<p>kept</p>');
     expect(out).toBe('<p>\nkept\n</p>');
@@ -312,21 +311,18 @@ describe('htmlDiff', () => {
     const result = htmlDiff(before, after);
     const folded = result.blocks.filter((block) => block.folded);
     expect(folded.length).toBeGreaterThan(0);
-    // Context is kept around the change, so the diff is still readable.
+
     const unfolded = result.blocks.filter((block) => !block.folded).flatMap((block) => block.lines);
     expect(unfolded.some((line) => line.text.includes('CHANGED'))).toBe(true);
   });
 
   it('reports both line counts', () => {
-    // Normalisation puts one tag or text run per line, so `<p>a</p>` is three lines.
     const result = htmlDiff('<p>a</p>', '<p>a</p><p>b</p>');
     expect(result.oldLineCount).toBe(3);
     expect(result.newLineCount).toBe(6);
   });
 
   it('bounds the payload for a complete page rewrite', () => {
-    // 3000 elements = 9000 normalised lines on each side, above both the input cap and the
-    // output cap. The point is that the payload stays bounded however large the page is.
     const before = Array.from({ length: 3000 }, (_unused, index) => `<p>before ${index}</p>`).join(
       '',
     );

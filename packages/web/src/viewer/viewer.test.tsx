@@ -6,20 +6,10 @@ import { TextDiff } from '../viewer/TextDiff.js';
 import { HtmlDiff } from '../viewer/HtmlDiff.js';
 import type { HtmlDiff as HtmlDiffPayload, TextDiff as TextDiffPayload } from '../api/types.js';
 
-/**
- * Change viewer component tests.
- *
- * Screenshots are never fetched from a server here: `Image` is stubbed so the component
- * believes a 200x100 image loaded, which is enough to drive the layout math, the mode
- * switching and the keyboard interactions that these tests are about.
- */
-
 const WIDTH = 200;
 const HEIGHT = 100;
 
 beforeEach(() => {
-  // jsdom's Image never loads; resolve it synchronously with a known natural size so the
-  // viewer can position overlays.
   vi.stubGlobal(
     'Image',
     class {
@@ -38,7 +28,6 @@ beforeEach(() => {
     },
   );
 
-  // getBoundingClientRect is 0x0 in jsdom; the fit-to-width calculation needs a real width.
   Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', {
     configurable: true,
     get() {
@@ -65,7 +54,6 @@ afterEach(() => {
 });
 
 import type { DiffRegion } from '@pagefreeze/shared';
-
 interface ViewerProps {
   beforeUrl: string | null;
   afterUrl: string;
@@ -94,7 +82,7 @@ const baseProps: ViewerProps = {
 
 async function renderViewer(overrides: Partial<ViewerProps> = {}) {
   render(<VisualDiff {...baseProps} {...overrides} />);
-  // The image "load" resolves in a microtask; wait for the toolbar to settle.
+
   await waitFor(() => expect(screen.queryByText('Loading screenshots…')).not.toBeInTheDocument());
 }
 
@@ -156,12 +144,11 @@ describe('VisualDiff modes', () => {
   it('explains when there is no baseline to compare against', async () => {
     await renderViewer({ beforeUrl: null });
 
-    // Slider is not a meaningful default with one image, so it starts on the diff.
     expect(screen.getByRole('button', { name: /highlighted diff/i })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    // Side by side is offered but disabled rather than silently broken.
+
     expect(screen.getByRole('button', { name: /side by side/i })).toBeDisabled();
   });
 
@@ -278,7 +265,6 @@ describe('VisualDiff zoom and pan', () => {
     fireEvent.keyDown(viewport, { key: '0' });
     expect(readout()).toBe(100);
 
-    // Arrow keys pan; the transform is what changes.
     const stage = viewport.firstElementChild as HTMLElement;
     const beforeTransform = stage.style.transform;
     fireEvent.keyDown(viewport, { key: 'ArrowRight' });
@@ -327,7 +313,7 @@ describe('VisualDiff regions', () => {
     expect(
       screen.queryByRole('button', { name: /changed region 1 of 2/i }),
     ).not.toBeInTheDocument();
-    // The table is still there, so the information is not lost.
+
     expect(screen.getByText('Changed regions')).toBeInTheDocument();
   });
 
@@ -348,7 +334,6 @@ describe('VisualDiff slider', () => {
     expect(slider).toHaveValue('25');
     expect(slider).toHaveAttribute('aria-valuetext', '25% showing the newer capture');
 
-    // The visible handle follows the same value.
     const handle = document.querySelector('.slider-handle') as HTMLElement;
     expect(handle.style.left).toContain('25%');
   });
@@ -415,7 +400,7 @@ describe('TextDiff', () => {
     expect(screen.getByText('$19').tagName).toBe('DEL');
     expect(screen.getByText('$29').tagName).toBe('INS');
     expect(screen.getByText('The price is')).toBeInTheDocument();
-    // Stats are announced, not just coloured.
+
     expect(screen.getByText(/\+2/)).toBeInTheDocument();
     expect(screen.getByText(/-1/)).toBeInTheDocument();
   });
@@ -515,9 +500,8 @@ describe('HtmlDiff', () => {
 
     const { container } = render(<HtmlDiff diff={dangerous} />);
 
-    // The markup is present as text...
     expect(container.textContent).toContain('onerror=');
-    // ...but no element was created from it.
+
     expect(container.querySelector('img')).toBeNull();
     expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
   });

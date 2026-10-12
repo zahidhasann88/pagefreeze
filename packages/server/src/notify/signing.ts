@@ -1,26 +1,12 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-/**
- * Webhook signing.
- *
- * Signature format: `X-Pagefreeze-Signature: sha256=<hex>` over `${timestamp}.${body}`,
- * where `timestamp` is the Unix seconds value sent in `X-Pagefreeze-Timestamp`.
- *
- * Including the timestamp in the signed payload is what makes replay detectable: a
- * receiver that rejects signatures older than its own tolerance window cannot be fed a
- * captured request later.
- */
-
 export const SIGNATURE_HEADER = 'x-pagefreeze-signature';
 export const TIMESTAMP_HEADER = 'x-pagefreeze-timestamp';
 export const DELIVERY_HEADER = 'x-pagefreeze-delivery';
 export const EVENT_HEADER = 'x-pagefreeze-event';
 
-/** Maximum accepted age of a signed delivery, for receivers that follow our recipe. */
 export const REPLAY_TOLERANCE_SECONDS = 300;
-
 export interface SignedHeaders {
-  /** Absent when the channel has no signing secret configured. */
   [SIGNATURE_HEADER]?: string;
   [TIMESTAMP_HEADER]: string;
   [DELIVERY_HEADER]: string;

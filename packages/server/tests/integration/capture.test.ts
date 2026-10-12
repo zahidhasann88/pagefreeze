@@ -26,7 +26,6 @@ const availability = await databaseAvailable();
 const describeDb = availability.ok ? describe : describe.skip;
 
 if (!availability.ok) {
-  // Printed once, clearly, so a skipped suite is never mistaken for a passing one.
   console.warn(`\n[pagefreeze] integration tests SKIPPED: ${availability.reason}\n`);
 }
 
@@ -101,13 +100,11 @@ describeDb('capture pipeline', () => {
     expect(snapshot.duplicateOf).toBeNull();
     expect(snapshot.errorMessage).toBeNull();
 
-    // Artefacts were actually written to the data directory.
     const stored = join(dataDirOf(handle), 'monitors', monitor.id, 'snapshots', snapshot.id);
     expect(existsSync(join(stored, 'screenshot.png'))).toBe(true);
     expect(existsSync(join(stored, 'page.html'))).toBe(true);
     expect(existsSync(join(stored, 'page.txt'))).toBe(true);
 
-    // No change can exist yet: there is nothing to compare against.
     expect(await listChanges(monitor.id)).toHaveLength(0);
   }, 180_000);
 
@@ -124,7 +121,6 @@ describeDb('capture pipeline', () => {
     await captureAndWait(monitor.id, 1);
     expect(await listChanges(monitor.id)).toHaveLength(0);
 
-    // The page changes between captures.
     fixture.setState({
       price: '$99',
       plans: ['Starter — $99/mo', 'Team — $199/mo'],
@@ -133,7 +129,7 @@ describeDb('capture pipeline', () => {
 
     const snapshots = await captureAndWait(monitor.id, 2);
     expect(snapshots).toHaveLength(2);
-    // The second capture is not a duplicate: the content differs.
+
     expect(snapshots[0]!.duplicateOf).toBeNull();
 
     const changes = await listChanges(monitor.id);
@@ -144,14 +140,12 @@ describeDb('capture pipeline', () => {
     expect(change.fromSnapshotId).toBe(snapshots[1]!.id);
     expect(change.toSnapshotId).toBe(snapshots[0]!.id);
 
-    // Visual stats come from pixelmatch over the two real screenshots.
     expect(change.pixelDiffPercent).toBeGreaterThan(0.1);
     expect(change.changedPixels).toBeGreaterThan(0);
     expect(change.totalPixels).toBe(1280 * (snapshots[0]!.screenshotHeight ?? 0));
     expect(change.sizeChanged).toBe(false);
     expect(change.regions.length).toBeGreaterThan(0);
 
-    // Text and HTML stats come from jsdiff over the extracted content.
     expect(change.textAdded).toBeGreaterThan(0);
     expect(change.textRemoved).toBeGreaterThan(0);
     expect(change.htmlAdded).toBeGreaterThan(0);
@@ -160,13 +154,11 @@ describeDb('capture pipeline', () => {
     expect(change.summary).toContain('Significant change');
     expect(change.hasDiffImage).toBe(true);
 
-    // The diff image is a real PNG of the same canvas size.
     const diffImage = await handle.client.buffer(`/api/v1/changes/${change.id}/diff-image`);
     expect(diffImage.status).toBe(200);
     expect(diffImage.contentType).toContain('image/png');
     expect(diffImage.body.subarray(1, 4).toString()).toBe('PNG');
 
-    // The detail payload carries the diff bodies the viewer renders.
     const detail = await handle.client.get<Record<string, unknown>>(`/api/v1/changes/${change.id}`);
     expect(detail.status).toBe(200);
     expect(detail.data?.['textDiff']).toBeTruthy();
@@ -175,7 +167,6 @@ describeDb('capture pipeline', () => {
     expect(textDiff.added).toBeGreaterThan(0);
     expect(textDiff.wordChanges.length).toBeGreaterThan(0);
 
-    // Region boxes are in the coordinate space of the newer screenshot.
     for (const region of change.regions) {
       expect(region.x).toBeGreaterThanOrEqual(0);
       expect(region.y).toBeGreaterThanOrEqual(0);
@@ -198,12 +189,11 @@ describeDb('capture pipeline', () => {
     const duplicate = snapshots[0]!;
     expect(duplicate.duplicateOf).toBe(snapshots[1]!.id);
     expect(duplicate.screenshotHash).toBe(snapshots[1]!.screenshotHash);
-    // The keys point at the earlier snapshot's artefacts: nothing new was written.
+
     expect(duplicate.id).not.toBe(snapshots[1]!.id);
 
     expect(await listChanges(monitor.id)).toHaveLength(0);
 
-    // Exactly one screenshot file exists for this monitor, not two.
     const snapshotDirs = readdirSync(join(dataDirOf(handle), 'monitors', monitor.id, 'snapshots'));
     const pngs = snapshotDirs.flatMap((dir) =>
       readdirSync(join(dataDirOf(handle), 'monitors', monitor.id, 'snapshots', dir)).filter(
@@ -214,8 +204,6 @@ describeDb('capture pipeline', () => {
   }, 240_000);
 
   it('reports no false change when a volatile timestamp is in the ignore selectors', async () => {
-    // The fixture renders a fresh ISO timestamp and a rotating banner on every request, so
-    // two captures of /pricing are never byte-identical without the ignore selectors.
     const monitor = await createMonitor({
       name: 'Ignored volatility',
       url: `${fixtureUrl}/pricing`,
@@ -226,10 +214,7 @@ describeDb('capture pipeline', () => {
     const snapshots = await captureAndWait(monitor.id, 2);
 
     expect(snapshots).toHaveLength(2);
-    // Removing ignored nodes must leave identical extracted content. Raster output can
-    // differ slightly between Chromium runs on Linux, so validate the monitor's actual
-    // no-false-change contract here. Exact screenshot deduplication is tested above
-    // against /static, which contains no initially visible volatile elements.
+
     for (const snapshot of snapshots) {
       expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     }
@@ -248,8 +233,6 @@ describeDb('capture pipeline', () => {
   }, 240_000);
 
   it('does report a change when the same volatile content is NOT ignored', async () => {
-    // The control for the test above: same page, no ignore selectors. Without it, a broken
-    // capture pipeline that always produced identical output would pass the previous test.
     const monitor = await createMonitor({
       name: 'Volatile, not ignored',
       url: `${fixtureUrl}/pricing`,
@@ -297,7 +280,6 @@ describeDb('capture pipeline', () => {
     const snapshots = await captureAndWait(monitor.id, 1);
     const snapshot = snapshots[0]!;
 
-    // A 500 still renders, so the capture succeeds but records the status.
     expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     expect(snapshot.httpStatus).toBe(500);
   }, 180_000);
@@ -305,13 +287,12 @@ describeDb('capture pipeline', () => {
   it('never creates a change from a failed capture', async () => {
     const monitor = await createMonitor({
       name: 'Unreachable host',
-      // A port nothing listens on; the guard allows the address but the connection fails.
+
       url: `${fixtureUrl}/pricing`,
       ignoreSelectors: [],
     });
     await captureAndWait(monitor.id, 1);
 
-    // Point the monitor at something that cannot be reached at all.
     const patched = await handle.client.patch<Monitor>(`/api/v1/monitors/${monitor.id}`, {
       url: 'http://127.0.0.1:1/unreachable',
     });
@@ -331,7 +312,6 @@ describeDb('capture pipeline', () => {
       ignoreSelectors: [],
     });
 
-    // The capture timeout is 45s in tests but the page needs 90s, so this must fail.
     const trigger = await handle.client.post(`/api/v1/monitors/${monitor.id}/capture`);
     expect(trigger.status).toBe(202);
 
@@ -354,10 +334,8 @@ describeDb('capture pipeline', () => {
     expect(failing.data?.consecutiveFailures).toBeGreaterThan(0);
     expect(failing.data?.status).toBe('failing');
 
-    // No change row is ever created from a failed snapshot.
     expect(await listChanges(monitor.id)).toHaveLength(0);
 
-    // Fix the target and confirm the streak resets.
     fixture.setState({ price: '$19' });
     await handle.client.patch(`/api/v1/monitors/${monitor.id}`, { url: `${fixtureUrl}/static` });
     await captureAndWait(monitor.id, 2);
@@ -426,7 +404,7 @@ describeDb('SSRF enforcement through a real browser', () => {
       url: `${fixtureUrl}/redirect-metadata`,
       changeThreshold: 0.1,
     });
-    // The fixture itself is allowlisted, so creation succeeds; the redirect target is not.
+
     expect(response.status, response.text).toBe(201);
     const monitor = response.data!;
 
@@ -443,7 +421,7 @@ describeDb('SSRF enforcement through a real browser', () => {
     );
 
     const snapshot = snapshots[0]!;
-    // The browser followed the redirect, but the proxy refused the connection.
+
     expect(snapshot.finalUrl).toContain('169.254.169.254');
     expect(snapshot.httpStatus).toBe(403);
 
@@ -527,10 +505,10 @@ describeDb('SSRF enforcement through a real browser', () => {
     );
 
     const snapshot = snapshots[0]!;
-    // The page itself is allowed, so the capture succeeds...
+
     expect(snapshot.status, snapshot.errorMessage ?? 'capture should succeed').toBe('success');
     expect(snapshot.httpStatus).toBe(200);
-    // ...and its content is present.
+
     const html = await handle.client.buffer(`/api/v1/snapshots/${snapshot.id}/html`);
     expect(html.body.toString('utf8')).toContain('Subresource test');
   }, 180_000);
@@ -597,13 +575,11 @@ describeDb('secrets at rest', () => {
     expect(created.text).not.toContain(cookieValue);
     expect(created.text).not.toContain('another-secret');
 
-    // Nor does a subsequent GET.
     const fetched = await handle.client.get<Monitor>(`/api/v1/monitors/${monitorId}`);
     expect(fetched.text).not.toContain(headerValue);
     expect(fetched.text).not.toContain(cookieValue);
     expect(fetched.data!.secrets.headerNames).toContain('Authorization');
 
-    // The raw row holds ciphertext, not plaintext.
     const db = newClient();
     await db.connect();
     try {
@@ -620,22 +596,17 @@ describeDb('secrets at rest', () => {
       expect(headersEnc).not.toContain('another-secret');
       expect(cookiesEnc).not.toContain(cookieValue);
 
-      // The envelope marker proves it went through our AES-256-GCM wrapper.
       expect(Buffer.from(headersEnc, 'base64').subarray(0, 4).toString('ascii')).toBe('PFZ1');
       expect(Buffer.from(cookiesEnc, 'base64').subarray(0, 4).toString('ascii')).toBe('PFZ1');
 
-      // Ciphertext is not merely base64 of the plaintext.
       expect(Buffer.from(headersEnc, 'base64').toString('utf8')).not.toContain('Authorization');
 
-      // Names are stored in the clear so the UI can show what is configured.
       expect(row.rows[0]!.header_names).toEqual(['Authorization', 'X-Api-Key']);
       expect(row.rows[0]!.cookie_names).toEqual(['sid']);
 
-      // Nothing in the monitors table either.
       const monitorRow = await db.query('SELECT * FROM monitors WHERE id = $1', [monitorId]);
       expect(JSON.stringify(monitorRow.rows[0])).not.toContain(headerValue);
 
-      // And the whole database contains no plaintext copy.
       const leak = await db.query(
         `SELECT count(*)::int AS n FROM monitors WHERE name ILIKE '%super-secret%'`,
       );
@@ -695,7 +666,6 @@ describeDb('secrets at rest', () => {
       await db.end();
     }
 
-    // A test delivery reaches the fixture and succeeds.
     const test = await handle.client.post<{ ok: boolean; status: number | null }>(
       `/api/v1/channels/${created.data!.id}/test`,
       {},

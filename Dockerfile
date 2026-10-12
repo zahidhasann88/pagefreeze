@@ -1,28 +1,14 @@
 # syntax=docker/dockerfile:1
 
-# Pagefreeze — multi-stage build.
-#
-# Stage layout:
-#   base     node + pnpm, shared by the build stages
-#   deps     installs the full dependency tree (including dev, needed to compile)
-#   build    compiles shared + server (tsc) and the web SPA (vite)
-#   runtime  the official Playwright image, which already ships Chromium and every shared
-#            library it needs, so the final layer does not have to install browser deps
-#
-# The runtime image contains production dependencies only, runs as a non-root user, and
-# has a liveness healthcheck wired to /healthz.
-
 ARG NODE_VERSION=20
 ARG PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.64.0-noble
 
-# --------------------------------------------------------------------------- base
 FROM node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN npm install --global pnpm@9.15.9
 WORKDIR /app
 
-# --------------------------------------------------------------------------- deps
 FROM base AS deps
 # A lockfile-only copy first: this layer is reused whenever source changes but the
 # dependency set does not, which is the common case.
@@ -33,7 +19,6 @@ COPY packages/web/package.json packages/web/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
-# -------------------------------------------------------------------------- build
 FROM deps AS build
 COPY tsconfig.base.json eslint.config.js .prettierrc.json ./
 COPY packages/shared packages/shared
@@ -48,7 +33,6 @@ RUN pnpm --filter @pagefreeze/shared build \
 # Trim to production dependencies for the runtime layer.
 RUN pnpm --filter @pagefreeze/server --prod deploy /out
 
-# ------------------------------------------------------------------------ runtime
 FROM ${PLAYWRIGHT_IMAGE} AS runtime
 
 # Chromium's own sandbox needs either user namespaces or a setuid helper, neither of which
