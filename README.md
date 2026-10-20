@@ -269,7 +269,7 @@ pnpm test:e2e     # one Playwright end-to-end test against a live stack
 pnpm lint && pnpm typecheck && pnpm coverage
 ```
 
-Node 20 or 22, pnpm 9. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and
+Node 20 or 22, pnpm 9. See
 [docs/architecture.md](docs/architecture.md) for the lay of the land.
 
 ## License
