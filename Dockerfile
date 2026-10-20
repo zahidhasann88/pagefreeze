@@ -11,7 +11,6 @@ WORKDIR /app
 
 FROM base AS deps
 # A lockfile-only copy first: this layer is reused whenever source changes but the
-# dependency set does not, which is the common case.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
@@ -36,8 +35,6 @@ RUN pnpm --filter @pagefreeze/server --prod deploy /out
 FROM ${PLAYWRIGHT_IMAGE} AS runtime
 
 # Chromium's own sandbox needs either user namespaces or a setuid helper, neither of which
-# an unprivileged container has. The container is the isolation boundary instead; see
-# docs/security.md for the trade-off and for how to re-enable it.
 ENV PAGEFREEZE_DISABLE_CHROMIUM_SANDBOX=true \
     NODE_ENV=production \
     PAGEFREEZE_DATA_DIR=/data \
@@ -48,7 +45,6 @@ ENV PAGEFREEZE_DISABLE_CHROMIUM_SANDBOX=true \
 WORKDIR /app
 
 # Everything the process needs at runtime, and nothing else: no TypeScript sources, no
-# devDependencies, no build cache.
 COPY --from=build /out ./packages/server
 COPY --from=build /app/packages/web/dist ./packages/web/dist
 
@@ -64,7 +60,6 @@ EXPOSE 8080
 VOLUME ["/data"]
 
 # /healthz is a liveness probe: it answers from the process alone, so a database restart
-# does not cause an orchestrator to kill a healthy container. Use /readyz for readiness.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

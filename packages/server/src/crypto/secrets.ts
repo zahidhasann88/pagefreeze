@@ -11,10 +11,10 @@ import {
  *
  * Wire format (base64 of): `PFZ1` | iv(12) | tag(16) | ciphertext
  *
- * Limitations (documented in README / docs/security.md):
+ * Limitations (documented in SECURITY.md):
  *  - There is no key id and therefore no built-in key rotation. Rotating
  *    PAGEFREEZE_SECRET_KEY requires re-encrypting the stored blobs; see
- *    `docs/security.md` for the procedure.
+ *    `SECURITY.md` for the procedure.
  *  - No additional authenticated data is used, so a blob can in theory be moved
  *    between rows without detection. This is acceptable for the current
  *    single-tenant model.
